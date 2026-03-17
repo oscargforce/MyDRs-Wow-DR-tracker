@@ -7,7 +7,6 @@ local drIconTextures = addon.drIconTextures
 local C_Timer = C_Timer
 local LibStub = LibStub
 local InterfaceOptionsFrame_OpenToCategory = InterfaceOptionsFrame_OpenToCategory
-local SlashCmdList = SlashCmdList
 local Settings = Settings
 
 function MyDRs:UpdateConfig()
@@ -80,6 +79,17 @@ function MyDRs:SetupOptions()
                 end,
                 width = 0.7,
             },
+            enableTestMode = {
+                        order = 1,
+                        type = "execute",
+                        desc = "Toggle test mode to preview DR tracking behavior.",
+                        name = function() return self.db.profile.enableTestMode and "Stop Test Mode" or "Play Test Mode" end,
+                        func = function()
+                            self.db.profile.enableTestMode = not self.db.profile.enableTestMode
+                            self:applyTestMode()
+                        end,
+                        width = 1.5,
+                    },
             general = {
                 type = "group",
                 name = "General Settings",
@@ -94,18 +104,7 @@ function MyDRs:SetupOptions()
                     lineBreak1 = {
                         name = " ",
                         type = "description",
-                        order = 0.5,
-                    },
-                    enableTestMode = {
                         order = 1,
-                        type = "toggle",
-                        name = "Enable Test Mode",
-                        desc = "Toggle test mode to preview DR tracking behavior.",
-                        get = function() return self.db.profile.enableTestMode end,
-                        set = function(_, value)
-                            self.db.profile.enableTestMode = value
-                            self:applyTestMode()
-                        end,
                     },
                     growIconsFromLeft = {
                         order = 2,
@@ -127,6 +126,7 @@ function MyDRs:SetupOptions()
                         set = function(_, value)
                             self.db.profile.enableCooldownReverse = value
                             self:UpdateConfig()
+                            self:RefreshTestAnimation(true)
                         end,
                     },
                     showCountdownText = {
@@ -457,13 +457,20 @@ function MyDRs:SetupOptions()
     self.optionsFrame, self.optionsCategoryID = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("MyDRs", "MyDRs")
     -- Register slash commands
     self:RegisterChatCommand("mydrs", function(input)
-        if Settings and Settings.OpenToCategory and self.optionsCategoryID then
-            Settings.OpenToCategory(self.optionsCategoryID)
+        local command = input and input:trim():lower() or ""
+        if command == "test" then
+            self.db.profile.enableTestMode = not self.db.profile.enableTestMode
+            self:applyTestMode()
             return
-        end
+        else
+            if Settings and Settings.OpenToCategory and self.optionsCategoryID then
+                Settings.OpenToCategory(self.optionsCategoryID)
+                return
+             end
 
         if InterfaceOptionsFrame_OpenToCategory and self.optionsFrame then
-            InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
+                InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
+            end
         end
     end)
 
@@ -583,12 +590,12 @@ function MyDRs:applyTestMode()
             self.leftArrow:Show()
             self.rightArrow:Show()
         end
-        self.drFrame:SetBackdrop({
+       --[[  self.drFrame:SetBackdrop({
             bgFile = nil,
             edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
             edgeSize = 12,
         })
-        self.drFrame:SetBackdropBorderColor(1, 0, 0, 1)
+        self.drFrame:SetBackdropBorderColor(0, 0, 0, 0.3) ]]
         self:playTestAnimation()
         self:UpdateTestModeFrameSize()
     else 
@@ -599,7 +606,7 @@ function MyDRs:applyTestMode()
 
         self.drFrame:SetMovable(false)
         self.drFrame:EnableMouse(false)
-        self.drFrame:SetBackdrop(nil)
+       -- self.drFrame:SetBackdrop(nil)
         self.drFrame:Show()
         if arrowsReady then
             self.upArrow:Hide()

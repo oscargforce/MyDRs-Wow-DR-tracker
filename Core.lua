@@ -100,8 +100,7 @@ local nonDrLossOfControlSpellIds = {
 local function createDrFrame(myDRs)
     local containerFrame = CreateFrame("Frame", "MyDRsContainer", UIParent, "BackdropTemplate")
     containerFrame:SetClampedToScreen(false)
-    containerFrame:SetFrameStrata("HIGH")
-    containerFrame:SetSize(410, 150)
+    containerFrame:SetFrameStrata("TOOLTIP")
     containerFrame:ClearAllPoints()
     local db = myDRs.db.profile
     local position = db.containerPosition
@@ -191,6 +190,12 @@ function MyDRs:OnInitialize()
     self.drStateByCategory = {}
     self.drFrame = createDrFrame(self)
     createIconFrames(self.drFrame, self)
+    self.drFrame:SetSize(410, 150)
+    local iconSize = self.db.profile.iconSize
+    local frameWidth = (iconSize * #drCategories) + (self.db.profile.iconPadding * (#drCategories - 1))
+    local frameHeight = iconSize
+    self.drFrame:SetSize(frameWidth + 15, frameHeight + 15)
+
     self.upArrow = self:createArrowButton("UP", 18, 15)
     self.downArrow = self:createArrowButton("DOWN", 18, -15)
     self.leftArrow = self:createArrowButton("LEFT", -15, -18)
