@@ -1,0 +1,11 @@
+## Interface: 120000
+## Title: Oscar DR Tracker
+## Notes: Tracks Diminishing Returns on players in battlegrounds and arenas
+## Version: 1.0.0
+## SavedVariables: OscarDrTrackerDB
+
+Profile.lua
+Options.lua
+Layout.lua
+ImmuneAlert.lua
+Core.lua
