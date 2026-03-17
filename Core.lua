@@ -27,6 +27,7 @@ local DEFAULT_CONFIG = {
         growIconsFromLeft = false, 
         enableCooldownReverse = true, 
         showCountdownText = true, 
+        enableImmuneAlertGlow = true,
         fontSize = 16, 
         cooldownSwipeAlpha = 1, 
     },
@@ -40,7 +41,7 @@ local drIconTextures = {
     stun = "Interface\\Icons\\Ability_Rogue_KidneyShot",
     disorient =  "Interface\\Icons\\Spell_Shadow_Possession",
     incapacitate = "Interface\\Icons\\Spell_Nature_Polymorph",
-    root = "Interface\\Icons\\Spell_Frost_FrostNova",
+    root = "Interface\\Icons\\Spell_Nature_StrangleVines",
     silence = "Interface\\Icons\\Spell_Shadow_SoulLeech_3",
     knockback = "Interface\\Icons\\Spell_Nature_CallStorm",
     disarm = "Interface\\Icons\\Ability_Warrior_Disarm",
@@ -381,7 +382,7 @@ function MyDRs:SetDRStateText(category, stacks)
     end
 
     frame.drStateText:SetText(getDrStateTextFromStacks(stacks, self.db.profile))
-    self:SetImmuneGlow(category, stacks >= 2)
+    self:SetImmuneGlow(category, self.db.profile.enableImmuneAlertGlow and stacks >= 2)
 end
 
 function MyDRs:StartDRWindow(category, stackOverride)

@@ -35,133 +35,151 @@ function MyDRs:UpdateConfig()
     self.drFrame:ClearAllPoints()
     self.drFrame:SetPoint(position.point, UIParent, position.relativePoint, position.x or 0, position.y or 0)
     self:SortIcons()
-     
- 
+    self:RefreshImmuneAlertGlow()
 end
 
 function MyDRs:SetupOptions()
     self.options = {
         type = "group",
         name = "MyDRs Options",
+        -- Adds the profile tab to the options menu.
+        plugins = {
+			profiles = { profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db) }
+		},
+        childGroups = "tab",
         args = {
-            desc = {
-                order = 0,
-                type = "description",
-                name = "Tracks your own DRs. Use |cFFFFFF00/mydrs|r to open the options menu. Its a simple addon and wont expand.",
-            },
-            lineBreak1 = {
-                    name = " ",
-                    type = "description",
-                    order = 0.5,
-                },
-            enableTestMode = {
+            general = {
+                type = "group",
+                name = "General Settings",
                 order = 1,
-                type = "toggle",
-                name = "Enable Test Mode",
-                desc = "Toggle test mode to preview DR tracking behavior.",
-                get = function() return self.db.profile.enableTestMode end,
-                set = function(_, value)
-                    self.db.profile.enableTestMode = value
-                    self:applyTestMode()
-                end,
-            },
-            growIconsFromLeft = {
-                order = 2,
-                type = "toggle",
-                name = "Grow Icons From Left",
-                get = function() return self.db.profile.growIconsFromLeft end,
-                set = function(_, value)
-                    self.db.profile.growIconsFromLeft = value
-                    self:UpdateConfig()
-                end,
-            },
-            enableCooldownReverse = {
-                order = 3,
-                type = "toggle",
-                name = "Reverse Cooldown Swipe",
-                get = function() return self.db.profile.enableCooldownReverse end,
-                set = function(_, value)
-                    self.db.profile.enableCooldownReverse = value
-                    self:UpdateConfig()
-                end,
-            },
-            showCountdownText = {
-                order = 4,
-                type = "toggle",
-                name = "Show Countdown Text",
-                get = function() return self.db.profile.showCountdownText end,
-                set = function(_, value)
-                    self.db.profile.showCountdownText = value
-                    self:UpdateConfig()
-                end,
-            },
-            lineBreak2 = {
-                name = " ",
-                type = "description",
-                order = 4.5,
-            },
-            iconSize = {
-                order = 5,
-                type = "range",
-                name = "Icon Size",
-                min = 30,
-                max = 100,
-                step = 1,
-                get = function() return self.db.profile.iconSize end,
-                set = function(_, value)
-                    self.db.profile.iconSize = value
-                    self:UpdateConfig()
-                end,
-            },
-            iconPadding = {
-                order = 6,
-                type = "range",
-                name = "Icon Padding",
-                min = 0,
-                max = 20,
-                step = 1,
-                get = function() return self.db.profile.iconPadding end,
-                set = function(_, value)
-                    self.db.profile.iconPadding = value
-                    self:UpdateConfig()
-                end,
-            },
-            fontSize = {
-                order = 7,
-                type = "range",
-                name = "Font Size",
-                min = 8,
-                max = 32,
-                step = 1,
-                get = function() return self.db.profile.fontSize end,
-                set = function(_, value)
-                    self.db.profile.fontSize = value
-                    self:UpdateConfig()
-                end,
-            },
-            cooldownSwipeAlpha = {
-                order = 8,
-                type = "range",
-                name = "Cooldown Swipe Alpha",
-                min = 0,
-                max = 1,
-                step = 0.05,
-                get = function() return self.db.profile.cooldownSwipeAlpha end,
-                set = function(_, value)
-                    self.db.profile.cooldownSwipeAlpha = value
-                    self:UpdateConfig()
-                end,
+                args = {
+                    desc = {
+                        order = 0,
+                        type = "description",
+                        name = "Tracks your own DRs. Use |cFFFFFF00/mydrs|r to open the options menu. Its a simple addon and wont expand.",
+                    },
+                    lineBreak1 = {
+                        name = " ",
+                        type = "description",
+                        order = 0.5,
+                    },
+                    enableTestMode = {
+                        order = 1,
+                        type = "toggle",
+                        name = "Enable Test Mode",
+                        desc = "Toggle test mode to preview DR tracking behavior.",
+                        get = function() return self.db.profile.enableTestMode end,
+                        set = function(_, value)
+                            self.db.profile.enableTestMode = value
+                            self:applyTestMode()
+                        end,
+                    },
+                    growIconsFromLeft = {
+                        order = 2,
+                        type = "toggle",
+                        name = "Grow Icons From Left",
+                        get = function() return self.db.profile.growIconsFromLeft end,
+                        set = function(_, value)
+                            self.db.profile.growIconsFromLeft = value
+                            self:UpdateConfig()
+                        end,
+                    },
+                    enableCooldownReverse = {
+                        order = 3,
+                        type = "toggle",
+                        name = "Reverse Cooldown Swipe",
+                        get = function() return self.db.profile.enableCooldownReverse end,
+                        set = function(_, value)
+                            self.db.profile.enableCooldownReverse = value
+                            self:UpdateConfig()
+                        end,
+                    },
+                    showCountdownText = {
+                        order = 4,
+                        type = "toggle",
+                        name = "Show Countdown Text",
+                        get = function() return self.db.profile.showCountdownText end,
+                        set = function(_, value)
+                            self.db.profile.showCountdownText = value
+                            self:UpdateConfig()
+                        end,
+                    },
+                    enableImmuneAlertGlow = {
+                        order = 4.1,
+                        type = "toggle",
+                        name = "Enable Immune Glow",
+                        desc = "Show or hide the immune glow animation on DR icons.",
+                        get = function() return self.db.profile.enableImmuneAlertGlow end,
+                        set = function(_, value)
+                            self.db.profile.enableImmuneAlertGlow = value
+                            self:RefreshImmuneAlertGlow()
+                            -- Restart test animation if in test mode to apply glow change immediately
+                            if self.db.profile.enableTestMode then
+                                self:playTestAnimation()
+                            end
+                        end,
+                    },
+                    lineBreak2 = {
+                        name = " ",
+                        type = "description",
+                        order = 4.5,
+                    },
+                    iconSize = {
+                        order = 5,
+                        type = "range",
+                        name = "Icon Size",
+                        min = 30,
+                        max = 100,
+                        step = 1,
+                        get = function() return self.db.profile.iconSize end,
+                        set = function(_, value)
+                            self.db.profile.iconSize = value
+                            self:UpdateConfig()
+                        end,
+                    },
+                    iconPadding = {
+                        order = 6,
+                        type = "range",
+                        name = "Icon Padding",
+                        min = 0,
+                        max = 20,
+                        step = 1,
+                        get = function() return self.db.profile.iconPadding end,
+                        set = function(_, value)
+                            self.db.profile.iconPadding = value
+                            self:UpdateConfig()
+                        end,
+                    },
+                    fontSize = {
+                        order = 7,
+                        type = "range",
+                        name = "Font Size",
+                        min = 8,
+                        max = 32,
+                        step = 1,
+                        get = function() return self.db.profile.fontSize end,
+                        set = function(_, value)
+                            self.db.profile.fontSize = value
+                            self:UpdateConfig()
+                        end,
+                    },
+                    cooldownSwipeAlpha = {
+                        order = 8,
+                        type = "range",
+                        name = "Cooldown Swipe Alpha",
+                        min = 0,
+                        max = 1,
+                        step = 0.05,
+                        get = function() return self.db.profile.cooldownSwipeAlpha end,
+                        set = function(_, value)
+                            self.db.profile.cooldownSwipeAlpha = value
+                            self:UpdateConfig()
+                        end,
+                    },
+                },
             },
         },
     }
-
-    -- Creates the profiules options table and embeds it in our options
-    local aceDBOptions = LibStub("AceDBOptions-3.0", true)
-    if aceDBOptions then
-        local profilesOptions = aceDBOptions:GetOptionsTable(self.db)
-        profilesOptions.order = 100
-        self.options.args.profiles = profilesOptions
-    end
 
     LibStub("AceConfig-3.0"):RegisterOptionsTable("MyDRs", self.options)
 
@@ -341,4 +359,14 @@ function MyDRs:PlayTestMode()
     end
 
     self:SortIcons()
+end
+
+function MyDRs:RefreshImmuneAlertGlow()
+    local glowEnabled = self.db.profile.enableImmuneAlertGlow
+
+    for _, category in ipairs(drCategories) do
+        local state = self.drStateByCategory[category]
+        local stacks = state and state.stacks or 0
+        self:SetImmuneGlow(category, glowEnabled and stacks >= 2)
+    end
 end
