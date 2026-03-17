@@ -10,7 +10,6 @@ local SlashCmdList = SlashCmdList
 local Settings = Settings
 
 
-
 function MyDRs:UpdateConfig()
     local db = self.db.profile
     local iconSize = db.iconSize
@@ -28,6 +27,14 @@ function MyDRs:UpdateConfig()
             drFrame.cooldown:SetSwipeColor(0, 0, 0, cooldownAlpha)
             drFrame.cooldown:SetHideCountdownNumbers(not showCountdownText)
             drFrame.drStateText:SetFont(drFrame.drStateText:GetFont(), fontSize, "OUTLINE")
+        end
+    end
+
+    -- Hide disabled DR categories
+    for i = 1, #drCategories do
+        local category = drCategories[i]
+        if not db["trackDR_" .. category] then
+            self:SetDRFrameVisible(category, false)
         end
     end
 
@@ -56,6 +63,7 @@ function MyDRs:SetupOptions()
                     desc = {
                         order = 0,
                         type = "description",
+                        fontSize = "medium",
                         name = "Tracks your own DRs. Use |cFFFFFF00/mydrs|r to open the options menu. Its a simple addon and wont expand.",
                     },
                     lineBreak1 = {
@@ -113,10 +121,7 @@ function MyDRs:SetupOptions()
                         set = function(_, value)
                             self.db.profile.enableImmuneAlertGlow = value
                             self:RefreshImmuneAlertGlow()
-                            -- Restart test animation if in test mode to apply glow change immediately
-                            if self.db.profile.enableTestMode then
-                                self:playTestAnimation()
-                            end
+                            self:RefreshTestAnimation(self.db.profile.enableImmuneAlertGlow)
                         end,
                     },
                     lineBreak2 = {
@@ -176,6 +181,107 @@ function MyDRs:SetupOptions()
                             self:UpdateConfig()
                         end,
                     },
+                    lineBreak3 = {
+                        name = " ",
+                        type = "description",
+                        order = 8.5,
+                    },
+                    drTrackingHeader = {
+                        order = 9,
+                        type = "description",
+                        fontSize = "large",
+                        name = "Tracked DR Categories:",
+                    },
+                    lineBreak4 = {
+                        name = " ",
+                        type = "description",
+                        order = 9.1,
+                    },
+                    trackDR_stun = {
+                        order = 9.2,
+                        type = "toggle",
+                        name = "Stun",
+                        desc = "Cheap Shot, Kidney Shot, etc.",
+                        get = function() return self.db.profile.trackDR_stun end,
+                        set = function(_, value)
+                            self.db.profile.trackDR_stun = value
+                            self:UpdateConfig()
+                            self:RefreshTestAnimation(self.db.profile.trackDR_stun)
+                        end,
+                    },
+                    trackDR_disorient = {
+                        order = 9.3,
+                        type = "toggle",
+                        name = "Disorient",
+                        desc = "Fear, Cyclone, Sleep Walk, Blind etc.",
+                        get = function() return self.db.profile.trackDR_disorient end,
+                        set = function(_, value)
+                            self.db.profile.trackDR_disorient = value
+                            self:UpdateConfig()
+                            self:RefreshTestAnimation(self.db.profile.trackDR_disorient)
+                        end,
+                    },
+                    trackDR_incapacitate = {
+                        order = 9.4,
+                        type = "toggle",
+                        name = "Incapacitate",
+                        desc = "Sap, Polymorph, Freezing Trap, etc.",
+                        get = function() return self.db.profile.trackDR_incapacitate end,
+                        set = function(_, value)
+                            self.db.profile.trackDR_incapacitate = value
+                            self:UpdateConfig()
+                            self:RefreshTestAnimation(self.db.profile.trackDR_incapacitate)
+                        end,
+                    },
+                    trackDR_root = {
+                        order = 9.5,
+                        type = "toggle",
+                        name = "Root",
+                        desc = "Entangling Roots, Frost Nova, etc.",
+                        get = function() return self.db.profile.trackDR_root end,
+                        set = function(_, value)
+                            self.db.profile.trackDR_root = value
+                            self:UpdateConfig()
+                            self:RefreshTestAnimation(self.db.profile.trackDR_root)
+                        end,
+                    },
+                    trackDR_silence = {
+                        order = 9.6,
+                        type = "toggle",
+                        name = "Silence",
+                        desc = "Strangulate, Garrote, etc.",
+                        get = function() return self.db.profile.trackDR_silence end,
+                        set = function(_, value)
+                            self.db.profile.trackDR_silence = value
+                            self:UpdateConfig()
+                            self:RefreshTestAnimation(self.db.profile.trackDR_silence)
+                        end,
+                    },
+                    trackDR_knockback = {
+                        order = 9.7,
+                        type = "toggle",
+                        name = "Knockback",
+                        desc = "Typhoon, Thunderstorm etc.",
+                        get = function() return self.db.profile.trackDR_knockback end,
+                        set = function(_, value)
+                            self.db.profile.trackDR_knockback = value
+                            self:UpdateConfig()
+                            self:RefreshTestAnimation(self.db.profile.trackDR_knockback)
+
+                        end,
+                    },
+                    trackDR_disarm = {
+                        order = 9.8,
+                        type = "toggle",
+                        name = "Disarm",
+                        desc = "Disarm abilities",
+                        get = function() return self.db.profile.trackDR_disarm end,
+                        set = function(_, value)
+                            self.db.profile.trackDR_disarm = value
+                            self:UpdateConfig()
+                            self:RefreshTestAnimation(self.db.profile.trackDR_disarm)
+                        end,
+                    },
                 },
             },
         },
@@ -201,25 +307,77 @@ function MyDRs:SetupOptions()
 end
 
 
+local arrowButtonTextures = {
+    RIGHT = {
+        normal = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up",
+        pushed = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down",
+        disabled = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Disabled",
+        rotation = 0,
+    },
+    LEFT = {
+        normal = "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up",
+        pushed = "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Down",
+        disabled = "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Disabled",
+        rotation = 0,
+    },
+    UP = {
+        normal = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up",
+        pushed = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down",
+        disabled = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Disabled",
+        rotation = math.pi / 2,
+    },
+    DOWN = {
+        normal = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up",
+        pushed = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down",
+        disabled = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Disabled",
+        rotation = -math.pi / 2,
+    },
+}
+
 function MyDRs:createArrowButton(direction, x, y)
     local parent = self.drFrame
-    local button = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+    local button = CreateFrame("Button", nil, parent)
     button:SetSize(24, 24)
-    button:SetFrameLevel("10")
+    button:SetFrameLevel(parent:GetFrameLevel() + 10)
 
-    if direction == "UP" then
-        button:SetPoint("CENTER", parent, "RIGHT", x, y) 
-        button:SetText("^")
-        button:SetNormalFontObject(GameFontNormalLarge)
-    elseif direction == "DOWN" then
+    local style = arrowButtonTextures[direction]
+    if not style then
+        return button
+    end
+
+    if direction == "UP" or direction == "DOWN" then
         button:SetPoint("CENTER", parent, "RIGHT", x, y)
-        button:SetText("v")
-    elseif direction == "LEFT" then
+    else
         button:SetPoint("BOTTOM", parent, "BOTTOM", x, y)
-        button:SetText("<")
-    elseif direction == "RIGHT" then
-        button:SetPoint("BOTTOM", parent, "BOTTOM", x, y)
-        button:SetText(">")
+    end
+
+    button:SetNormalTexture(style.normal)
+    button:SetPushedTexture(style.pushed)
+    button:SetDisabledTexture(style.disabled)
+    button:SetHighlightTexture(style.normal, "ADD")
+
+    local rotation = style.rotation or 0
+    local normalTexture = button:GetNormalTexture()
+    local pushedTexture = button:GetPushedTexture()
+    local disabledTexture = button:GetDisabledTexture()
+    local highlightTexture = button:GetHighlightTexture()
+
+    if normalTexture then
+        normalTexture:SetAllPoints(button)
+        normalTexture:SetRotation(rotation)
+    end
+    if pushedTexture then
+        pushedTexture:SetAllPoints(button)
+        pushedTexture:SetRotation(rotation)
+    end
+    if disabledTexture then
+        disabledTexture:SetAllPoints(button)
+        disabledTexture:SetRotation(rotation)
+    end
+    if highlightTexture then
+        highlightTexture:SetAllPoints(button)
+        highlightTexture:SetRotation(rotation)
+        highlightTexture:SetAlpha(0.35)
     end
 
     button:SetScript("OnClick", function()
@@ -328,32 +486,37 @@ function MyDRs:PlayTestMode()
 
     for i = 1, #drCategories do
         local category = drCategories[i]
+        local isTracked = self.db.profile["trackDR_" .. category]
         local drFrame = self:GetDRFrame(category)
         if drFrame and drFrame.cooldown then
-            drFrame:Show()
-            drFrame.cooldown:SetCooldown(now, DR_WINDOW_DURATION)
-            drFrame.cooldown:SetSwipeColor(0, 0, 0, self.db.profile.cooldownSwipeAlpha)
-            drFrame.startTime = now + (i * 0.001)
+            if isTracked then
+                drFrame:Show()
+                drFrame.cooldown:SetCooldown(now, DR_WINDOW_DURATION)
+                drFrame.cooldown:SetSwipeColor(0, 0, 0, self.db.profile.cooldownSwipeAlpha)
+                drFrame.startTime = now + (i * 0.001)
 
-            if i == 1 and drFrame.immuneAlert then
-                local immuneAlert = drFrame.immuneAlert
+                if i == 1 and drFrame.immuneAlert then
+                    local immuneAlert = drFrame.immuneAlert
 
-                if immuneAlert.animOut:IsPlaying() then
-                    immuneAlert.animOut:Stop()
+                    if immuneAlert.animOut:IsPlaying() then
+                        immuneAlert.animOut:Stop()
+                    end
+                    if immuneAlert.animIn:IsPlaying() then
+                        immuneAlert.animIn:Stop()
+                    end
+
+                    immuneAlert.isActive = false
+                    immuneAlert.isAnimatingOut = false
+                    immuneAlert:SetScript("OnUpdate", nil)
+                    immuneAlertResetVisuals(immuneAlert)
+                    immuneAlert:Hide()
+
+                    self:SetDRStateText(category, 2)
+                else
+                    self:SetDRStateText(category, 0)
                 end
-                if immuneAlert.animIn:IsPlaying() then
-                    immuneAlert.animIn:Stop()
-                end
-
-                immuneAlert.isActive = false
-                immuneAlert.isAnimatingOut = false
-                immuneAlert:SetScript("OnUpdate", nil)
-                immuneAlertResetVisuals(immuneAlert)
-                immuneAlert:Hide()
-
-                self:SetDRStateText(category, 2)
             else
-                self:SetDRStateText(category, 0)
+                drFrame:Hide()
             end
         end
     end
@@ -368,5 +531,11 @@ function MyDRs:RefreshImmuneAlertGlow()
         local state = self.drStateByCategory[category]
         local stacks = state and state.stacks or 0
         self:SetImmuneGlow(category, glowEnabled and stacks >= 2)
+    end
+end
+
+function MyDRs:RefreshTestAnimation(condition)
+    if self.db.profile.enableTestMode and condition then
+        self:playTestAnimation()
     end
 end

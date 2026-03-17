@@ -8,11 +8,7 @@ local GetTime = GetTime
 
 --[[
    TODOLIST
-    - Add toggle for immune alert glow
-    - Add select which drs to track
     - (Nice to have) add option to set dr textures
-    - (Nice to have) add new textures for the arrow buttons.
-    
 -- /dump pcall(_G.C_LossOfControl.GetActiveLossOfControlDataByUnit, "player", 2)
 ]]
 
@@ -30,6 +26,13 @@ local DEFAULT_CONFIG = {
         enableImmuneAlertGlow = true,
         fontSize = 16, 
         cooldownSwipeAlpha = 1, 
+        trackDR_stun = true,
+        trackDR_disorient = true,
+        trackDR_incapacitate = true,
+        trackDR_root = true,
+        trackDR_silence = true,
+        trackDR_knockback = true,
+        trackDR_disarm = true,
     },
 }
 
@@ -174,12 +177,10 @@ function MyDRs:OnInitialize()
     self.drStateByCategory = {}
     self.drFrame = createDrFrame(self)
     createIconFrames(self.drFrame, self)
-    -- remove self.arrow later
-    self.upArrow = self:createArrowButton("UP", 0, 15)
-    self.downArrow = self:createArrowButton("DOWN", 0, -15)
-    self.leftArrow = self:createArrowButton("LEFT", -15, 0)
-    self.rightArrow = self:createArrowButton("RIGHT", 15, 0)
-
+    self.upArrow = self:createArrowButton("UP", -2, 15)
+    self.downArrow = self:createArrowButton("DOWN", -2, -15)
+    self.leftArrow = self:createArrowButton("LEFT", -15, -10)
+    self.rightArrow = self:createArrowButton("RIGHT", 15, -10)
     self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
@@ -348,12 +349,13 @@ function MyDRs:UpdateDRs(updateInfo)
         state.auraIds = isActive and active.auraIds or nil
         state.lastSeenStartTime = isActive and active.startTime or nil
 
+        local isTracked = self.db.profile["trackDR_" .. cat]
         if isActive then
-            self:SetDRFrameVisible(cat, state.stacks > 0)
+            self:SetDRFrameVisible(cat, isTracked and state.stacks > 0)
         else
             local expAt = state.expiresAt
             local inDrWindow = expAt and expAt > now
-            self:SetDRFrameVisible(cat, inDrWindow)
+            self:SetDRFrameVisible(cat, isTracked and inDrWindow)
             if expAt and not inDrWindow then
                 self:ResetDRState(cat)
             end
