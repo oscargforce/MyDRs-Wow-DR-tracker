@@ -344,7 +344,7 @@ function MyDRs:UpdateDRs(updateInfo)
             state.applicationCount = count
             if count > state.stacks then
                 state.stacks = count
-                self:SetDRStateText(cat, count)
+                self:SetImmuneGlow(cat, self.db.profile.enableImmuneAlertGlow and count >= 2)
             end
 
             local frame = self:GetDRFrame(cat)
@@ -366,6 +366,10 @@ function MyDRs:UpdateDRs(updateInfo)
         local isTracked = self.db.profile["trackDR_" .. cat]
         if isActive then
             self:SetDRFrameVisible(cat, isTracked and state.stacks > 0)
+            local frame = self:GetDRFrame(cat)
+            if frame and frame.drStateText then
+                frame.drStateText:Hide()
+            end
         else
             local expAt = state.expiresAt
             local inDrWindow = expAt and expAt > now
