@@ -208,6 +208,7 @@ function MyDRs:SetupOptions()
                             self.db.profile.fontSize = value
                             self:UpdateConfig()
                         end,
+                        disabled = function() return not self.db.profile.showDRStateText end,
                     },
                     cooldownSwipeAlpha = {
                         order = 8,
