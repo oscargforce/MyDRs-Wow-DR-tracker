@@ -707,12 +707,7 @@ function MyDRs:RefreshTestAnimation(condition)
 end
 
 function MyDRs:UpdateTestModeFrameSize()
-    if not self.defaultDrFrameWidth or not self.defaultDrFrameHeight then
-        self.defaultDrFrameWidth, self.defaultDrFrameHeight = self.drFrame:GetSize()
-    end
-
     if not self.db.profile.enableTestMode then
-        self.drFrame:SetSize(self.defaultDrFrameWidth, self.defaultDrFrameHeight)
         return
     end
 
