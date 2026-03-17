@@ -3,12 +3,12 @@ local addonName, addon = ...
 local drCategories = addon.drCategories
 local DR_WINDOW_DURATION = addon.DR_WINDOW_DURATION
 local immuneAlertResetVisuals = addon.ResetImmuneAlertVisuals
+local drIconTextures = addon.drIconTextures
 local C_Timer = C_Timer
 local LibStub = LibStub
 local InterfaceOptionsFrame_OpenToCategory = InterfaceOptionsFrame_OpenToCategory
 local SlashCmdList = SlashCmdList
 local Settings = Settings
-
 
 function MyDRs:UpdateConfig()
     local db = self.db.profile
@@ -27,6 +27,19 @@ function MyDRs:UpdateConfig()
             drFrame.cooldown:SetSwipeColor(0, 0, 0, cooldownAlpha)
             drFrame.cooldown:SetHideCountdownNumbers(not showCountdownText)
             drFrame.drStateText:SetFont(drFrame.drStateText:GetFont(), fontSize, "OUTLINE")
+            drFrame.drStateText:SetShown(db.showDRStateText)
+        end
+    end
+
+    -- Update icon textures
+    for i = 1, #drCategories do
+        local category = drCategories[i]
+        local drFrame = self:GetDRFrame(category)
+        if drFrame and drFrame.icon then
+            local tex = db["drTexture_" .. category]
+            if tex and tex ~= "" then
+                drFrame.icon:SetTexture(tex)
+            end
         end
     end
 
@@ -42,6 +55,7 @@ function MyDRs:UpdateConfig()
     self.drFrame:ClearAllPoints()
     self.drFrame:SetPoint(position.point, UIParent, position.relativePoint, position.x or 0, position.y or 0)
     self:SortIcons()
+    self:UpdateTestModeFrameSize()
     self:RefreshImmuneAlertGlow()
 end
 
@@ -55,6 +69,17 @@ function MyDRs:SetupOptions()
 		},
         childGroups = "tab",
         args = {
+            resetPosition = {
+                type = "execute",
+                name = "Reset Position",
+                desc = "Reset the position of the DR bar to its default location.",
+                order = 0,
+                func = function()
+                    self.db.profile.containerPosition = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
+                    self:UpdateConfig()
+                end,
+                width = 0.7,
+            },
             general = {
                 type = "group",
                 name = "General Settings",
@@ -86,10 +111,12 @@ function MyDRs:SetupOptions()
                         order = 2,
                         type = "toggle",
                         name = "Grow Icons From Left",
+                        desc = "Additional DR icons will grow to the left of the first icon instead of to the right.",
                         get = function() return self.db.profile.growIconsFromLeft end,
                         set = function(_, value)
                             self.db.profile.growIconsFromLeft = value
                             self:UpdateConfig()
+                            self:RefreshTestAnimation(true)
                         end,
                     },
                     enableCooldownReverse = {
@@ -106,10 +133,24 @@ function MyDRs:SetupOptions()
                         order = 4,
                         type = "toggle",
                         name = "Show Countdown Text",
+                        desc = "Show or hide Blizzard's default countdown text on DR icons.",
                         get = function() return self.db.profile.showCountdownText end,
                         set = function(_, value)
                             self.db.profile.showCountdownText = value
                             self:UpdateConfig()
+                            self:RefreshTestAnimation(true)
+                        end,
+                    },
+                    showDRStateText = {
+                        order = 4.05,
+                        type = "toggle",
+                        name = "Show DR State Text",
+                        desc = "Show or hide the 50% / IMM text on DR icons.",
+                        get = function() return self.db.profile.showDRStateText end,
+                        set = function(_, value)
+                            self.db.profile.showDRStateText = value
+                            self:UpdateConfig()
+                            self:RefreshTestAnimation(true)
                         end,
                     },
                     enableImmuneAlertGlow = {
@@ -284,6 +325,128 @@ function MyDRs:SetupOptions()
                     },
                 },
             },
+            textures = {
+                type = "group",
+                name = "Textures",
+                order = 2,
+                args = {
+                    desc = {
+                        order = 0,
+                        type = "description",
+                        fontSize = "medium",
+                        name = "|cffffd200Custom Icon Path|r\n\n" ..
+                                "Enter the full path to the icon you want to use.\n\n" ..
+                                "Example:\n" ..
+                                "|cff00ff00Interface\\Icons\\Spell_Frost_FrostNova|r\n\n" ..
+                                "You can search for the spell on |cff33ccffWowhead|r and open its page.\n" ..
+                                "The icon name can be found in the |cffffff00\"Quick Facts\"|r section.\n" ..
+                                "Copy the icon name and paste it after:\n" ..
+                                "|cffaaaaaaInterface\\Icons\\|r",
+                    },
+                    lineBreak1 = { order = 0.5, type = "description", name = " " },
+                    drTexture_stun = {
+                        order = 1,
+                        type = "input",
+                        name = "Stun",
+                        desc = "Texture path or ID for Stun icons. Leave empty to use default.",
+                        get = function() return self.db.profile.drTexture_stun end,
+                        set = function(_, value)
+                            self.db.profile.drTexture_stun = value
+                            self:UpdateConfig()
+                        end,
+                        width = "full",
+                    },
+                    drTexture_disorient = {
+                        order = 2,
+                        type = "input",
+                        name = "Disorient",
+                        desc = "Texture path or ID for Disorient icons. Leave empty to use default.",
+                        get = function() return self.db.profile.drTexture_disorient end,
+                        set = function(_, value)
+                            self.db.profile.drTexture_disorient = value
+                            self:UpdateConfig()
+                        end,
+                        width = "full",
+                    },
+                    drTexture_incapacitate = {
+                        order = 3,
+                        type = "input",
+                        name = "Incapacitate",
+                        desc = "Texture path or ID for Incapacitate icons. Leave empty to use default.",
+                        get = function() return self.db.profile.drTexture_incapacitate end,
+                        set = function(_, value)
+                            self.db.profile.drTexture_incapacitate = value
+                            self:UpdateConfig()
+                        end,
+                        width = "full",
+                    },
+                    drTexture_root = {
+                        order = 4,
+                        type = "input",
+                        name = "Root",
+                        desc = "Texture path or ID for Root icons. Leave empty to use default.",
+                        get = function() return self.db.profile.drTexture_root end,
+                        set = function(_, value)
+                            self.db.profile.drTexture_root = value
+                            self:UpdateConfig()
+                        end,
+                        width = "full",
+                    },
+                    drTexture_silence = {
+                        order = 5,
+                        type = "input",
+                        name = "Silence",
+                        desc = "Texture path or ID for Silence icons. Leave empty to use default.",
+                        get = function() return self.db.profile.drTexture_silence end,
+                        set = function(_, value)
+                            self.db.profile.drTexture_silence = value
+                            self:UpdateConfig()
+                        end,
+                        width = "full",
+                    },
+                    drTexture_knockback = {
+                        order = 6,
+                        type = "input",
+                        name = "Knockback",
+                        desc = "Texture path or ID for Knockback icons. Leave empty to use default.",
+                        get = function() return self.db.profile.drTexture_knockback end,
+                        set = function(_, value)
+                            self.db.profile.drTexture_knockback = value
+                            self:UpdateConfig()
+                        end,
+                        width = "full",
+                    },
+                    drTexture_disarm = {
+                        order = 7,
+                        type = "input",
+                        name = "Disarm",
+                        desc = "Texture path or ID for Disarm icons. Leave empty to use default.",
+                        get = function() return self.db.profile.drTexture_disarm end,
+                        set = function(_, value)
+                            self.db.profile.drTexture_disarm = value
+                            self:UpdateConfig()
+                        end,
+                        width = "full",
+                    },
+                    lineBreak2 = { order = 7.5, type = "description", name = " " },
+                    resetTextures = {
+                        order = 8,
+                        type = "execute",
+                        name = "Reset All Textures",
+                        desc = "Restore all DR category icons to their default textures.",
+                        func = function()
+                            self.db.profile.drTexture_stun         =  drIconTextures.stun
+                            self.db.profile.drTexture_disorient    =  drIconTextures.disorient
+                            self.db.profile.drTexture_incapacitate =  drIconTextures.incapacitate
+                            self.db.profile.drTexture_root         =  drIconTextures.root
+                            self.db.profile.drTexture_silence      =  drIconTextures.silence
+                            self.db.profile.drTexture_knockback    =  drIconTextures.knockback
+                            self.db.profile.drTexture_disarm       =  drIconTextures.disarm
+                            self:UpdateConfig()
+                        end,
+                    },
+                },
+            },
         },
     }
 
@@ -426,6 +589,7 @@ function MyDRs:applyTestMode()
         })
         self.drFrame:SetBackdropBorderColor(1, 0, 0, 1)
         self:playTestAnimation()
+        self:UpdateTestModeFrameSize()
     else 
         if ticker then
             ticker:Cancel()
@@ -446,6 +610,7 @@ function MyDRs:applyTestMode()
         -- Clear test-mode visuals immediately, then rebuild from live state if needed.
         self:ResetAllDRStates()
         self:UpdateDRs()
+        self:UpdateTestModeFrameSize()
     end
 end
 
@@ -522,6 +687,7 @@ function MyDRs:PlayTestMode()
     end
 
     self:SortIcons()
+    self:UpdateTestModeFrameSize()
 end
 
 function MyDRs:RefreshImmuneAlertGlow()
@@ -538,4 +704,36 @@ function MyDRs:RefreshTestAnimation(condition)
     if self.db.profile.enableTestMode and condition then
         self:playTestAnimation()
     end
+end
+
+function MyDRs:UpdateTestModeFrameSize()
+    if not self.defaultDrFrameWidth or not self.defaultDrFrameHeight then
+        self.defaultDrFrameWidth, self.defaultDrFrameHeight = self.drFrame:GetSize()
+    end
+
+    if not self.db.profile.enableTestMode then
+        self.drFrame:SetSize(self.defaultDrFrameWidth, self.defaultDrFrameHeight)
+        return
+    end
+
+    local visibleCount = 0
+    for i = 1, #drCategories do
+        local category = drCategories[i]
+        local frame = self:GetDRFrame(category)
+        if frame and frame:IsShown() then
+            visibleCount = visibleCount + 1
+        end
+    end
+
+    local iconSize = self.db.profile.iconSize or 50
+    local iconPadding = self.db.profile.iconPadding or 0
+    local iconsWidth = 0
+
+    if visibleCount > 0 then
+        iconsWidth = (visibleCount * iconSize) + ((visibleCount - 1) * iconPadding)
+    end
+
+    local frameWidth = math.max(iconSize, iconsWidth)
+    local frameHeight = iconSize
+    self.drFrame:SetSize(frameWidth + 15, frameHeight + 15)
 end

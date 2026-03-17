@@ -14,6 +14,18 @@ local GetTime = GetTime
 
 MyDRs = LibStub("AceAddon-3.0"):NewAddon("MyDRs", "AceEvent-3.0", "AceConsole-3.0")
 
+local drIconTextures = {
+    stun = "Interface\\Icons\\Ability_Rogue_KidneyShot",
+    disorient =  "Interface\\Icons\\Spell_Shadow_Possession",
+    incapacitate = "Interface\\Icons\\Spell_Nature_Polymorph",
+    root = "Interface\\Icons\\Spell_Nature_StrangleVines",
+    silence = "Interface\\Icons\\Spell_Shadow_SoulLeech_3",
+    knockback = "Interface\\Icons\\Spell_Nature_CallStorm",
+    disarm = "Interface\\Icons\\Ability_Warrior_Disarm",
+}
+
+addon.drIconTextures = drIconTextures
+
 local DEFAULT_CONFIG = {
     profile = {
         enableTestMode = false, 
@@ -23,6 +35,7 @@ local DEFAULT_CONFIG = {
         growIconsFromLeft = false, 
         enableCooldownReverse = true, 
         showCountdownText = true, 
+        showDRStateText = true,
         enableImmuneAlertGlow = true,
         fontSize = 16, 
         cooldownSwipeAlpha = 1, 
@@ -33,22 +46,23 @@ local DEFAULT_CONFIG = {
         trackDR_silence = true,
         trackDR_knockback = true,
         trackDR_disarm = true,
+        drTexture_stun = drIconTextures.stun,
+        drTexture_disorient = drIconTextures.disorient,
+        drTexture_incapacitate = drIconTextures.incapacitate,
+        drTexture_root = drIconTextures.root,
+        drTexture_silence = drIconTextures.silence,
+        drTexture_knockback = drIconTextures.knockback,
+        drTexture_disarm = drIconTextures.disarm,
     },
 }
 
 local DR_WINDOW_DURATION = 16
 addon.DR_WINDOW_DURATION = DR_WINDOW_DURATION
+
 local drCategories = { "stun", "disorient", "incapacitate", "root", "silence", "knockback", "disarm" }
 addon.drCategories = drCategories
-local drIconTextures = {
-    stun = "Interface\\Icons\\Ability_Rogue_KidneyShot",
-    disorient =  "Interface\\Icons\\Spell_Shadow_Possession",
-    incapacitate = "Interface\\Icons\\Spell_Nature_Polymorph",
-    root = "Interface\\Icons\\Spell_Nature_StrangleVines",
-    silence = "Interface\\Icons\\Spell_Shadow_SoulLeech_3",
-    knockback = "Interface\\Icons\\Spell_Nature_CallStorm",
-    disarm = "Interface\\Icons\\Ability_Warrior_Disarm",
-}
+
+
 local locTypeToDRCategory = {
     STUN="incapacitate",
     STUN_MECHANIC="stun",
@@ -85,7 +99,7 @@ local nonDrLossOfControlSpellIds = {
 
 local function createDrFrame(myDRs)
     local containerFrame = CreateFrame("Frame", "MyDRsContainer", UIParent, "BackdropTemplate")
-    containerFrame:SetClampedToScreen(true)
+    containerFrame:SetClampedToScreen(false)
     containerFrame:SetFrameStrata("HIGH")
     containerFrame:SetSize(410, 150)
     containerFrame:ClearAllPoints()
@@ -130,7 +144,7 @@ local function createIconFrames(parentFrame, MyDRs)
 
         local icon = drFrame:CreateTexture(nil, "BACKGROUND")
         icon:SetAllPoints()
-        icon:SetTexture(drIconTextures[category])
+        icon:SetTexture(db["drTexture_" .. category] or drIconTextures[category])
 
         local cooldown = CreateFrame("Cooldown", nil, drFrame, "CooldownFrameTemplate")
         cooldown:SetAllPoints()
@@ -177,10 +191,10 @@ function MyDRs:OnInitialize()
     self.drStateByCategory = {}
     self.drFrame = createDrFrame(self)
     createIconFrames(self.drFrame, self)
-    self.upArrow = self:createArrowButton("UP", -2, 15)
-    self.downArrow = self:createArrowButton("DOWN", -2, -15)
-    self.leftArrow = self:createArrowButton("LEFT", -15, -10)
-    self.rightArrow = self:createArrowButton("RIGHT", 15, -10)
+    self.upArrow = self:createArrowButton("UP", 18, 15)
+    self.downArrow = self:createArrowButton("DOWN", 18, -15)
+    self.leftArrow = self:createArrowButton("LEFT", -15, -18)
+    self.rightArrow = self:createArrowButton("RIGHT", 15, -18)
     self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
@@ -384,6 +398,7 @@ function MyDRs:SetDRStateText(category, stacks)
     end
 
     frame.drStateText:SetText(getDrStateTextFromStacks(stacks, self.db.profile))
+    frame.drStateText:SetShown(self.db.profile.showDRStateText)
     self:SetImmuneGlow(category, self.db.profile.enableImmuneAlertGlow and stacks >= 2)
 end
 
