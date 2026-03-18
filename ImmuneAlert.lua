@@ -1,3 +1,5 @@
+-- All credits for the animations go to the authors of OmniCD
+
 local addonName, addon = ...
 local AnimateTexCoords = AnimateTexCoords
 
