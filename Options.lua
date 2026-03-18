@@ -11,50 +11,35 @@ local Settings = Settings
 
 function MyDRs:UpdateConfig()
     local db = self.db.profile
-    local iconSize = db.iconSize
-    local isReversed = db.enableCooldownReverse
-    local fontSize = db.fontSize
-    local cooldownAlpha = db.cooldownSwipeAlpha
-    local showCountdownText = db.showCountdownText
+    local fontSize = self:GetBaseFontSize()
 
     for i = 1, #drCategories do
         local category = drCategories[i]
         local drFrame = self:GetDRFrame(category)
         if drFrame then
-            drFrame:SetSize(iconSize, iconSize)
-            drFrame.cooldown:SetReverse(isReversed)
-            drFrame.cooldown:SetSwipeColor(0, 0, 0, cooldownAlpha)
-            drFrame.cooldown:SetHideCountdownNumbers(not showCountdownText)
+            drFrame:SetSize(addon.BASE_ICON_SIZE, addon.BASE_ICON_SIZE)
+            drFrame.cooldown:SetReverse(db.enableCooldownReverse)
+            drFrame.cooldown:SetSwipeColor(0, 0, 0, db.cooldownSwipeAlpha)
+            drFrame.cooldown:SetHideCountdownNumbers(not db.showCountdownText)
             drFrame.drStateText:SetFont(drFrame.drStateText:GetFont(), fontSize, "OUTLINE")
             drFrame.drStateText:SetShown(db.showDRStateText)
-        end
-    end
 
-    -- Update icon textures
-    for i = 1, #drCategories do
-        local category = drCategories[i]
-        local drFrame = self:GetDRFrame(category)
-        if drFrame and drFrame.icon then
             local tex = db["drTexture_" .. category]
-            if tex and tex ~= "" then
+            if drFrame.icon and tex and tex ~= "" then
                 drFrame.icon:SetTexture(tex)
             end
-        end
-    end
 
-    -- Hide disabled DR categories
-    for i = 1, #drCategories do
-        local category = drCategories[i]
-        if not db["trackDR_" .. category] then
-            self:SetDRFrameVisible(category, false)
+            if not db["trackDR_" .. category] then
+                self:SetDRFrameVisible(category, false)
+            end
         end
     end
 
     local position = db.containerPosition
     self.drFrame:ClearAllPoints()
     self.drFrame:SetPoint(position.point, UIParent, position.relativePoint, position.x or 0, position.y or 0)
+    self:UpdateIconContainerLayout()
     self:SortIcons()
-    self:UpdateTestModeFrameSize()
     self:RefreshImmuneAlertGlow()
 end
 
@@ -455,12 +440,15 @@ function MyDRs:SetupOptions()
 
     -- Add the options table to Blizzard's options UI
     self.optionsFrame, self.optionsCategoryID = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("MyDRs", "MyDRs")
+    
     -- Register slash commands
     self:RegisterChatCommand("mydrs", function(input)
         local command = input and input:trim():lower() or ""
         if command == "test" then
             self.db.profile.enableTestMode = not self.db.profile.enableTestMode
             self:applyTestMode()
+            -- Refresh the options UI to reflect the changes
+             LibStub("AceConfigRegistry-3.0"):NotifyChange("MyDRs")
             return
         else
             if Settings and Settings.OpenToCategory and self.optionsCategoryID then
@@ -507,20 +495,17 @@ local arrowButtonTextures = {
 
 function MyDRs:createArrowButton(direction, x, y)
     local parent = self.drFrame
+    local anchorTarget = self:GetIconContainer() or parent
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(24, 24)
-    button:SetFrameLevel(parent:GetFrameLevel() + 10)
+    button:SetFrameLevel(anchorTarget:GetFrameLevel() + 10)
 
     local style = arrowButtonTextures[direction]
     if not style then
         return button
     end
 
-    if direction == "UP" or direction == "DOWN" then
-        button:SetPoint("CENTER", parent, "RIGHT", x, y)
-    else
-        button:SetPoint("BOTTOM", parent, "BOTTOM", x, y)
-    end
+    button:SetPoint("BOTTOM", anchorTarget, "BOTTOM", x, y)
 
     button:SetNormalTexture(style.normal)
     button:SetPushedTexture(style.pushed)
@@ -554,7 +539,6 @@ function MyDRs:createArrowButton(direction, x, y)
     button:SetScript("OnClick", function()
         local point, _, relPoint, xOffset, yOffset = parent:GetPoint()
 
-        -- Move the frame by 1 pixel in the specified direction
         if direction == "UP" then
             yOffset = yOffset + 1
         elseif direction == "DOWN" then
@@ -568,7 +552,6 @@ function MyDRs:createArrowButton(direction, x, y)
         parent:ClearAllPoints()
         parent:SetPoint(point, UIParent, relPoint, xOffset, yOffset)
 
-        -- Save the updated position to your configuration
         MyDRs.db.profile.containerPosition = { point = point, relativePoint = relPoint, x = xOffset, y = yOffset }
     end)
 
@@ -579,10 +562,15 @@ local ticker
 
 function MyDRs:applyTestMode()
     local arrowsReady = self.upArrow and self.downArrow and self.leftArrow and self.rightArrow
+    local visualFrame = self:GetIconContainer() or self.drFrame
 
     if self.db.profile.enableTestMode then
         self.drFrame:SetMovable(true)
         self.drFrame:EnableMouse(true)
+        self.drFrame:SetFrameStrata("TOOLTIP")
+        if visualFrame then
+            visualFrame:EnableMouse(true)
+        end
         self.drFrame:Show()
         if arrowsReady then
             self.upArrow:Show()
@@ -590,15 +578,16 @@ function MyDRs:applyTestMode()
             self.leftArrow:Show()
             self.rightArrow:Show()
         end
-       --[[  self.drFrame:SetBackdrop({
-            bgFile = nil,
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            edgeSize = 12,
-        })
-        self.drFrame:SetBackdropBorderColor(0, 0, 0, 0.3) ]]
+        if visualFrame then
+            visualFrame:SetBackdrop({
+                bgFile = nil,
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                edgeSize = 12,
+            })
+            visualFrame:SetBackdropBorderColor(0, 0, 0, 0.3)
+        end
         self:playTestAnimation()
-        self:UpdateTestModeFrameSize()
-    else 
+    else
         if ticker then
             ticker:Cancel()
             ticker = nil
@@ -606,7 +595,11 @@ function MyDRs:applyTestMode()
 
         self.drFrame:SetMovable(false)
         self.drFrame:EnableMouse(false)
-       -- self.drFrame:SetBackdrop(nil)
+        self.drFrame:SetFrameStrata("MEDIUM")
+        if visualFrame then
+            visualFrame:EnableMouse(false)
+            visualFrame:SetBackdrop(nil)
+        end
         self.drFrame:Show()
         if arrowsReady then
             self.upArrow:Hide()
@@ -618,7 +611,6 @@ function MyDRs:applyTestMode()
         -- Clear test-mode visuals immediately, then rebuild from live state if needed.
         self:ResetAllDRStates()
         self:UpdateDRs()
-        self:UpdateTestModeFrameSize()
     end
 end
 
@@ -695,7 +687,6 @@ function MyDRs:PlayTestMode()
     end
 
     self:SortIcons()
-    self:UpdateTestModeFrameSize()
 end
 
 function MyDRs:RefreshImmuneAlertGlow()
@@ -712,31 +703,4 @@ function MyDRs:RefreshTestAnimation(condition)
     if self.db.profile.enableTestMode and condition then
         self:playTestAnimation()
     end
-end
-
-function MyDRs:UpdateTestModeFrameSize()
-    if not self.db.profile.enableTestMode then
-        return
-    end
-
-    local visibleCount = 0
-    for i = 1, #drCategories do
-        local category = drCategories[i]
-        local frame = self:GetDRFrame(category)
-        if frame and frame:IsShown() then
-            visibleCount = visibleCount + 1
-        end
-    end
-
-    local iconSize = self.db.profile.iconSize or 50
-    local iconPadding = self.db.profile.iconPadding or 0
-    local iconsWidth = 0
-
-    if visibleCount > 0 then
-        iconsWidth = (visibleCount * iconSize) + ((visibleCount - 1) * iconPadding)
-    end
-
-    local frameWidth = math.max(iconSize, iconsWidth)
-    local frameHeight = iconSize
-    self.drFrame:SetSize(frameWidth + 15, frameHeight + 15)
 end

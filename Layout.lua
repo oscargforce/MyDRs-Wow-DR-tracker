@@ -1,10 +1,11 @@
 local MyDRs = LibStub("AceAddon-3.0"):GetAddon("MyDRs")
 
 function MyDRs:SortVisibleDRIcons(categories, skipSort)
-    local trackerFrame = self.drFrame
-    if not trackerFrame.drFramesByCategory or not categories then
+    if not categories then
         return
     end
+
+    local trackerFrame = self:GetIconContainer()
 
     local visibleFrames = {}
     for _, category in ipairs(categories) do
@@ -27,8 +28,10 @@ function MyDRs:SortVisibleDRIcons(categories, skipSort)
         end)
     end
 
-    local padding = self.db.profile.iconPadding or 0
+    local padding = self:GetBaseIconPadding()
     local growIconsFromLeft = self.db.profile.growIconsFromLeft
+
+    self:UpdateIconContainerLayout(#visibleFrames)
 
     for index, frame in ipairs(visibleFrames) do
         frame:ClearAllPoints()

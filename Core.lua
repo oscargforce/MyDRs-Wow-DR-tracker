@@ -6,12 +6,6 @@ local C_LossOfControl = _G.C_LossOfControl
 local pcall = pcall
 local GetTime = GetTime
 
---[[
-   TODOLIST
-    - (Nice to have) add option to set dr textures
--- /dump pcall(_G.C_LossOfControl.GetActiveLossOfControlDataByUnit, "player", 2)
-]]
-
 MyDRs = LibStub("AceAddon-3.0"):NewAddon("MyDRs", "AceEvent-3.0", "AceConsole-3.0")
 
 local drIconTextures = {
@@ -25,6 +19,9 @@ local drIconTextures = {
 }
 
 addon.drIconTextures = drIconTextures
+
+local BASE_ICON_SIZE = 50
+addon.BASE_ICON_SIZE = BASE_ICON_SIZE
 
 local DEFAULT_CONFIG = {
     profile = {
@@ -100,7 +97,8 @@ local nonDrLossOfControlSpellIds = {
 local function createDrFrame(myDRs)
     local containerFrame = CreateFrame("Frame", "MyDRsContainer", UIParent, "BackdropTemplate")
     containerFrame:SetClampedToScreen(false)
-    containerFrame:SetFrameStrata("TOOLTIP")
+    containerFrame:SetFrameStrata("MEDIUM")
+    containerFrame:SetSize(1, 1)
     containerFrame:ClearAllPoints()
     local db = myDRs.db.profile
     local position = db.containerPosition
@@ -122,24 +120,45 @@ local function createDrFrame(myDRs)
         end
     end)
 
+    local iconsContainer = CreateFrame("Frame", "$parentIcons", containerFrame, "BackdropTemplate")
+    iconsContainer:SetPoint("LEFT", containerFrame, "CENTER", 0, 0)
+    iconsContainer:SetSize(BASE_ICON_SIZE, BASE_ICON_SIZE)
+    iconsContainer:SetScale(db.iconSize / BASE_ICON_SIZE)
+    iconsContainer:EnableMouse(false)
+    iconsContainer:SetScript("OnMouseDown", function(_, button)
+        if button == "LeftButton" and containerFrame:IsMovable() then
+            containerFrame:StartMoving()
+        end
+    end)
+    iconsContainer:SetScript("OnMouseUp", function(_, button)
+        if button ~= "LeftButton" or not containerFrame:IsMovable() then
+            return
+        end
+
+        containerFrame:StopMovingOrSizing()
+
+        local point, _, relPoint, xOfs, yOfs = containerFrame:GetPoint()
+        myDRs.db.profile.containerPosition = { point = point, relativePoint = relPoint, x = xOfs, y = yOfs }
+    end)
+
+    containerFrame.iconsContainer = iconsContainer
+
     return containerFrame
 end
 
 local function createIconFrames(parentFrame, MyDRs)
     local db = MyDRs.db.profile
-    local iconSize = db.iconSize
-    local padding = db.iconPadding
-    local isReversed = db.enableCooldownReverse
-    local fontSize = db.fontSize
-    local cooldownAlpha = db.cooldownSwipeAlpha
+    local scale = db.iconSize / BASE_ICON_SIZE
+    local padding = db.iconPadding / scale
 
     parentFrame.drFramesByCategory = {}
+    MyDRs.drFrame.drFramesByCategory = parentFrame.drFramesByCategory
 
     for i = 1, #drCategories do
         local category = drCategories[i]
         local drFrame = CreateFrame("Frame", "MyDRsIconTracker"..i, parentFrame)
-        drFrame:SetSize(iconSize, iconSize)
-        drFrame:SetPoint("LEFT", (iconSize + padding) * (i - 1), 0)
+        drFrame:SetSize(BASE_ICON_SIZE, BASE_ICON_SIZE)
+        drFrame:SetPoint("LEFT", (BASE_ICON_SIZE + padding) * (i - 1), 0)
 
         local icon = drFrame:CreateTexture(nil, "BACKGROUND")
         icon:SetAllPoints()
@@ -147,8 +166,8 @@ local function createIconFrames(parentFrame, MyDRs)
 
         local cooldown = CreateFrame("Cooldown", nil, drFrame, "CooldownFrameTemplate")
         cooldown:SetAllPoints()
-        cooldown:SetReverse(isReversed)
-        cooldown:SetSwipeColor(0, 0, 0, cooldownAlpha)
+        cooldown:SetReverse(db.enableCooldownReverse)
+        cooldown:SetSwipeColor(0, 0, 0, db.cooldownSwipeAlpha)
 
         local immuneAlert = createImmuneAlertFrame(drFrame)
 
@@ -171,8 +190,8 @@ local function createIconFrames(parentFrame, MyDRs)
 
         local drStateText = cooldown:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         drStateText:SetPoint("BOTTOM", cooldown, "BOTTOM", 0, 2)
-        drStateText:SetFont(drStateText:GetFont(), fontSize, "OUTLINE") 
-        drStateText:SetText("100%") 
+        drStateText:SetFont(drStateText:GetFont(), db.fontSize / scale, "OUTLINE")
+        drStateText:SetText("100%")
 
         drFrame.icon = icon
         drFrame.cooldown = cooldown
@@ -180,32 +199,73 @@ local function createIconFrames(parentFrame, MyDRs)
         drFrame.drStateText = drStateText
         drFrame.category = category
         drFrame.sortIndex = i
+        drFrame:Hide()
         parentFrame.drFramesByCategory[category] = drFrame
-        
     end
+end
+
+function MyDRs:GetIconContainer()
+    return self.drFrame.iconsContainer
+end
+
+function MyDRs:GetIconScale()
+    return self.db.profile.iconSize / BASE_ICON_SIZE
+end
+
+function MyDRs:GetBaseIconPadding()
+    local scale = self:GetIconScale()
+    return scale > 0 and (self.db.profile.iconPadding / scale) or self.db.profile.iconPadding
+end
+
+function MyDRs:GetBaseFontSize()
+    local scale = self:GetIconScale()
+    return scale > 0 and (self.db.profile.fontSize / scale) or self.db.profile.fontSize
+end
+
+function MyDRs:GetTrackedCategoryCount()
+    local count = 0
+    for _, category in ipairs(drCategories) do
+        if self.db.profile["trackDR_" .. category] then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+function MyDRs:UpdateIconContainerLayout(iconCount)
+    local trackerFrame = self:GetIconContainer()
+    
+    local count = (iconCount and iconCount > 0) and iconCount or self:GetTrackedCategoryCount()
+    count = math.max(count, 1)
+
+    local padding = self:GetBaseIconPadding()
+    local width = (BASE_ICON_SIZE * count) + (padding * (count - 1))
+
+    trackerFrame:ClearAllPoints()
+    local anchorPoint = self.db.profile.growIconsFromLeft and "RIGHT" or "LEFT"
+    trackerFrame:SetPoint(anchorPoint, self.drFrame, "CENTER", 0, 0)
+
+    trackerFrame:SetSize(width, BASE_ICON_SIZE)
+    trackerFrame:SetScale(self:GetIconScale())
 end
 
 function MyDRs:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("MyDRsDB", DEFAULT_CONFIG, true)
     self.drStateByCategory = {}
     self.drFrame = createDrFrame(self)
-    createIconFrames(self.drFrame, self)
-    self.drFrame:SetSize(410, 150)
-    local iconSize = self.db.profile.iconSize
-    local frameWidth = (iconSize * #drCategories) + (self.db.profile.iconPadding * (#drCategories - 1))
-    local frameHeight = iconSize
-    self.drFrame:SetSize(frameWidth + 15, frameHeight + 15)
+    createIconFrames(self.drFrame.iconsContainer, self)
+    self.upArrow = self:createArrowButton("UP", -0, -15)
+    self.downArrow = self:createArrowButton("DOWN", 0, -45)
+    self.leftArrow = self:createArrowButton("LEFT", -15, -30)
+    self.rightArrow = self:createArrowButton("RIGHT", 15, -30)
 
-    self.upArrow = self:createArrowButton("UP", 18, 15)
-    self.downArrow = self:createArrowButton("DOWN", 18, -15)
-    self.leftArrow = self:createArrowButton("LEFT", -15, -18)
-    self.rightArrow = self:createArrowButton("RIGHT", 15, -18)
     self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
 	self:RegisterEvent("UNIT_AURA")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD")
+    self:UpdateConfig()
     self:SetupOptions()
     self:applyTestMode()
 end
@@ -397,7 +457,7 @@ local function getDrStateTextFromStacks(stacks, db)
 end
 
 function MyDRs:GetDRFrame(category)
-    return self.drFrame.drFramesByCategory and self.drFrame.drFramesByCategory[category]
+    return self.drFrame.iconsContainer.drFramesByCategory[category]
 end
 
 function MyDRs:SetDRStateText(category, stacks)
@@ -582,6 +642,7 @@ function MyDRs:SortIcons(skipSort)
 end
 
 --[[
+ Response Example from C_LossOfControl.GetActiveLossOfControlDataByUnit("player", 1):
 {
   "success": true,
   "data": {
