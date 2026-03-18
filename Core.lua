@@ -92,6 +92,7 @@ local nonDrLossOfControlSpellIds = {
     [105771] = true, -- Charge Root (LoC root aura)
     [78675] = true,  -- Solar Beam (cast)
     [81261] = true,  -- Solar Beam Silence (LoC aura)
+    [358861] = true, -- Shadow priests PvP talent: Cascading Horrors
 }
 
 local function createDrFrame(myDRs)
@@ -265,6 +266,7 @@ function MyDRs:OnInitialize()
 	self:RegisterEvent("UNIT_AURA")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD")
+	self:RegisterEvent("ARENA_PREP_OPPONENT_SPECIALIZATIONS")
     self:UpdateConfig()
     self:SetupOptions()
     self:applyTestMode()
@@ -291,6 +293,10 @@ function MyDRs:ZONE_CHANGED_NEW_AREA()
 end
 
 function MyDRs:PLAYER_ENTERING_WORLD()
+    self:ResetAllDRStates()
+end
+
+function MyDRs:ARENA_PREP_OPPONENT_SPECIALIZATIONS()
     self:ResetAllDRStates()
 end
 
@@ -491,9 +497,7 @@ function MyDRs:StartDRWindow(category, stackOverride)
     end
 
     local now = GetTime()
-    if not frame:IsShown() then
-        frame.startTime = now
-    end
+    frame.startTime = now
 
     local nextStacks = stackOverride
     if nextStacks == nil then
