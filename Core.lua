@@ -81,6 +81,7 @@ local spellIdToDRCategoryOverrides = {
     [105421] = "disorient", -- Blinding Light reports CONFUSE but shares disorient DR.
     [207167] = "disorient", -- Blinding Sleet (Dks) reports CONFUSE but shares disorient DR.
     [33786] = "disorient", -- Cyclone reports STUN but shares disorient DR.
+    [198909] = "disorient", -- Song of Chi-Ji reports STUN but shares disorient DR.
 }
 
 -- These show up in LossOfControl but should not drive DR tracking.
