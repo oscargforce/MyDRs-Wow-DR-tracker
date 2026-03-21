@@ -86,22 +86,29 @@ function MyDRs:SetupOptions()
                         fontSize = "medium",
                         name = "Tracks your own DRs. Use |cFFFFFF00/mydrs|r to open the options menu. Its a simple addon and wont expand.",
                     },
-                    lineBreak1 = {
+                      lineBreak0 = {
                         name = " ",
                         type = "description",
                         order = 1,
                     },
                     growIconsFromLeft = {
                         order = 2,
-                        type = "toggle",
-                        name = "Grow Icons From Left",
-                        desc = "Additional DR icons will grow to the left of the first icon instead of to the right.",
-                        get = function() return self.db.profile.growIconsFromLeft end,
+                        type = "select",
+                        name = "Grow Icons From The:",
+                        desc = "Choose the direction from which new DR icons will grow when added to the bar.",
+                        values = { ["LEFT"] = "Left", ["RIGHT"] = "Right" },
+                        get = function() return self.db.profile.growIconsFromLeft and "LEFT" or "RIGHT" end,
                         set = function(_, value)
-                            self.db.profile.growIconsFromLeft = value
+                            local isLeft = value == "LEFT"
+                            self.db.profile.growIconsFromLeft = isLeft
                             self:UpdateConfig()
                             self:RefreshTestAnimation(true)
                         end,
+                    },
+                    lineBreak1 = {
+                        name = " ",
+                        type = "description",
+                        order = 2.5,
                     },
                     enableCooldownReverse = {
                         order = 3,

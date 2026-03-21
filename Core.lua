@@ -94,6 +94,8 @@ local nonDrLossOfControlSpellIds = {
     [78675] = true,  -- Solar Beam (cast)
     [81261] = true,  -- Solar Beam Silence (LoC aura)
     [358861] = true, -- Shadow priests PvP talent: Cascading Horrors
+    [157997] = true, -- Ice Nova (Mage talent)
+    [370970] = true, -- The Hunt's root effect from the DH ability
 }
 
 local function createDrFrame(myDRs)
