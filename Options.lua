@@ -316,6 +316,52 @@ function MyDRs:SetupOptions()
                             self:RefreshTestAnimation(self.db.profile.trackDR_disarm)
                         end,
                     },
+                    lineBreak5 = {
+                        name = " ",
+                        type = "description",
+                        order = 9.9,
+                    },
+                    zoneTypeHeader = {
+                        order = 10,
+                        type = "description",
+                        fontSize = "large",
+                        name = "Enable Tracking In:",
+                    },
+                    lineBreak6 = {
+                        name = " ",
+                        type = "description",
+                        order = 10.5,
+                    },
+                    enableInArena = {
+                        order = 11,
+                        type = "toggle",
+                        name = "Arenas",
+                        get = function() return self.db.profile.enableInArena end,
+                        set = function(_, value)
+                            self.db.profile.enableInArena = value
+                            self:ApplyZoneState()
+                        end,
+                    },
+                    enableInBattleground = {
+                        order = 12,
+                        type = "toggle",
+                        name = "Battlegrounds",
+                        get = function() return self.db.profile.enableInBattleground end,
+                        set = function(_, value)
+                            self.db.profile.enableInBattleground = value
+                            self:ApplyZoneState()
+                        end,
+                    },
+                    enableInWorld = {
+                        order = 13,
+                        type = "toggle",
+                        name = "World",
+                        get = function() return self.db.profile.enableInWorld end,
+                        set = function(_, value)
+                            self.db.profile.enableInWorld = value
+                            self:ApplyZoneState()
+                        end,
+                    },
                 },
             },
             textures = {

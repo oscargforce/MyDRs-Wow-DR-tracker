@@ -36,6 +36,9 @@ local DEFAULT_CONFIG = {
         enableImmuneAlertGlow = true,
         fontSize = 16, 
         cooldownSwipeAlpha = 1, 
+        enableInArena = true,
+        enableInBattleground = true,
+        enableInWorld = true,
         trackDR_stun = true,
         trackDR_disorient = true,
         trackDR_incapacitate = true,
@@ -96,6 +99,7 @@ local nonDrLossOfControlSpellIds = {
     [358861] = true, -- Shadow priests PvP talent: Cascading Horrors
     [157997] = true, -- Ice Nova (Mage talent)
     [370970] = true, -- The Hunt's root effect from the DH ability
+    [45334] = true,  -- Bear Charge
 }
 
 local function createDrFrame(myDRs)
@@ -266,22 +270,19 @@ function MyDRs:OnInitialize()
     self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
-	self:RegisterEvent("UNIT_AURA")
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD")
 	self:RegisterEvent("ARENA_PREP_OPPONENT_SPECIALIZATIONS")
     self:UpdateConfig()
     self:SetupOptions()
     self:applyTestMode()
+    self:ApplyZoneState()
 end
 
 function MyDRs:OnProfileChanged()
     self:UpdateConfig()
     self:applyTestMode()
-
-    if not self.db.profile.enableTestMode then
-        self:ResetAllDRStates()
-    end
+    self:ApplyZoneState()
 end
 
 function MyDRs:UNIT_AURA(_, unit, updateInfo)
@@ -292,15 +293,35 @@ function MyDRs:UNIT_AURA(_, unit, updateInfo)
 end
 
 function MyDRs:ZONE_CHANGED_NEW_AREA()
-    self:ResetAllDRStates()
+   self:ApplyZoneState()
 end
 
 function MyDRs:PLAYER_ENTERING_WORLD()
-    self:ResetAllDRStates()
+   self:ApplyZoneState()
 end
 
 function MyDRs:ARENA_PREP_OPPONENT_SPECIALIZATIONS()
     self:ResetAllDRStates()
+end
+
+function MyDRs:IsEnabledForCurrentZone()
+    local _, instanceType = IsInInstance()
+    if instanceType == "arena" then
+        return self.db.profile.enableInArena
+    elseif instanceType == "pvp" then
+        return self.db.profile.enableInBattleground
+    else
+        return self.db.profile.enableInWorld
+    end
+end
+
+function MyDRs:ApplyZoneState()
+    self:ResetAllDRStates()
+    if self:IsEnabledForCurrentZone() then
+        self:RegisterEvent("UNIT_AURA")
+    else
+        self:UnregisterEvent("UNIT_AURA")
+    end
 end
 
 local function getLossOfControlType(locData)
@@ -393,63 +414,71 @@ function MyDRs:UpdateDRs(updateInfo)
             state = self.drStateByCategory[cat]
         end
 
-        local active = activeDRs[cat]
-        local isActive = active ~= nil
-        local newApp = false
+        local isTracked = self.db.profile["trackDR_" .. cat]
+        if not isTracked then
+            if state.isActive or state.stacks > 0 or state.expiresAt then
+                self:ResetDRState(cat)
+            end
+            state.isActive = false
+            self:SetDRFrameVisible(cat, false)
+        else
+            local active = activeDRs[cat]
+            local isActive = active ~= nil
+            local newApp = false
 
-        if isActive then
-            if not state.isActive then
-                newApp = true
-            else
-                for auraId in pairs(active.auraIds) do
-                    if not state.auraIds or not state.auraIds[auraId] then
+            if isActive then
+                if not state.isActive then
+                    newApp = true
+                else
+                    for auraId in pairs(active.auraIds) do
+                        if not state.auraIds or not state.auraIds[auraId] then
+                            newApp = true
+                            break
+                        end
+                    end
+                    if not newApp and active.startTime > (state.lastSeenStartTime or 0) + 0.05 then
                         newApp = true
-                        break
                     end
                 end
-                if not newApp and active.startTime > (state.lastSeenStartTime or 0) + 0.05 then
-                    newApp = true
+            end
+
+            if newApp then
+                local count = math.min(state.applicationCount + 1, 2)
+                state.applicationCount = count
+                if count > state.stacks then
+                    state.stacks = count
+                    self:SetImmuneGlow(cat, self.db.profile.enableImmuneAlertGlow and count >= 2)
+                end
+
+                local frame = self:GetDRFrame(cat)
+                if frame and frame.cooldown then
+                    frame.cooldown:SetCooldown(0, 0)
                 end
             end
-        end
 
-        if newApp then
-            local count = math.min(state.applicationCount + 1, 2)
-            state.applicationCount = count
-            if count > state.stacks then
-                state.stacks = count
-                self:SetImmuneGlow(cat, self.db.profile.enableImmuneAlertGlow and count >= 2)
+            if state.isActive and not isActive then
+                if state.applicationCount > 0 then
+                    self:StartDRWindow(cat, state.applicationCount)
+                end
             end
 
-            local frame = self:GetDRFrame(cat)
-            if frame and frame.cooldown then
-                frame.cooldown:SetCooldown(0, 0)
-            end
-        end
+            state.isActive = isActive
+            state.auraIds = isActive and active.auraIds or nil
+            state.lastSeenStartTime = isActive and active.startTime or nil
 
-        if state.isActive and not isActive then
-            if state.applicationCount > 0 then
-                self:StartDRWindow(cat, state.applicationCount)
-            end
-        end
-
-        state.isActive = isActive
-        state.auraIds = isActive and active.auraIds or nil
-        state.lastSeenStartTime = isActive and active.startTime or nil
-
-        local isTracked = self.db.profile["trackDR_" .. cat]
-        if isActive then
-            self:SetDRFrameVisible(cat, isTracked and state.stacks > 0)
-            local frame = self:GetDRFrame(cat)
-            if frame and frame.drStateText then
-                frame.drStateText:Hide()
-            end
-        else
-            local expAt = state.expiresAt
-            local inDrWindow = expAt and expAt > now
-            self:SetDRFrameVisible(cat, isTracked and inDrWindow)
-            if expAt and not inDrWindow then
-                self:ResetDRState(cat)
+            if isActive then
+                self:SetDRFrameVisible(cat, state.stacks > 0)
+                local frame = self:GetDRFrame(cat)
+                if frame and frame.drStateText then
+                    frame.drStateText:Hide()
+                end
+            else
+                local expAt = state.expiresAt
+                local inDrWindow = expAt and expAt > now
+                self:SetDRFrameVisible(cat, inDrWindow)
+                if expAt and not inDrWindow then
+                    self:ResetDRState(cat)
+                end
             end
         end
     end
