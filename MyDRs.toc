@@ -1,8 +1,9 @@
 ## Interface: 120001, 120005
 ## Title: My DR Tracker
 ## Notes: Tracks Diminishing Returns on players in battlegrounds and arenas
-## Version: 1.0.3
+## Version: 1.0.4
 ## SavedVariables: MyDRsDB
+## OptionalDeps: Masque
 
 libs\LibStub\LibStub.lua
 libs\CallbackHandler-1.0\CallbackHandler-1.0.xml

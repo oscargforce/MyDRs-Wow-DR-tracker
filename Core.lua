@@ -5,6 +5,8 @@ local ProfileManager = addon.ProfileManager
 local C_LossOfControl = _G.C_LossOfControl
 local pcall = pcall
 local GetTime = GetTime
+local LibStub = LibStub
+local Masque = LibStub and LibStub("Masque", true)
 
 MyDRs = LibStub("AceAddon-3.0"):NewAddon("MyDRs", "AceEvent-3.0", "AceConsole-3.0")
 
@@ -164,9 +166,10 @@ local function createIconFrames(parentFrame, MyDRs)
 
     for i = 1, #drCategories do
         local category = drCategories[i]
-        local drFrame = CreateFrame("Frame", "MyDRsIconTracker"..i, parentFrame)
+        local drFrame = CreateFrame("Button", "MyDRsIconTracker"..i, parentFrame)
         drFrame:SetSize(BASE_ICON_SIZE, BASE_ICON_SIZE)
         drFrame:SetPoint("LEFT", (BASE_ICON_SIZE + padding) * (i - 1), 0)
+        drFrame:EnableMouse(false)
 
         local icon = drFrame:CreateTexture(nil, "BACKGROUND")
         icon:SetAllPoints()
@@ -209,6 +212,43 @@ local function createIconFrames(parentFrame, MyDRs)
         drFrame.sortIndex = i
         drFrame:Hide()
         parentFrame.drFramesByCategory[category] = drFrame
+
+        MyDRs:RegisterMasqueButton(drFrame)
+    end
+end
+
+function MyDRs:InitializeMasque()
+    if not Masque then
+        return
+    end
+
+    self.masqueGroup = Masque:Group("MyDRs", "DR Icons")
+end
+
+function MyDRs:RegisterMasqueButton(button)
+    if not self.masqueGroup then
+        return
+    end
+
+    if button.isMasqueRegistered then
+        return
+    end
+    
+    self.masqueGroup:AddButton(button, {
+        Icon = button.icon,
+        Cooldown = button.cooldown,
+    })
+    
+    button.isMasqueRegistered = true
+end
+
+function MyDRs:RefreshMasqueSkin()
+    if not self.masqueGroup then
+        return
+    end
+
+    if type(self.masqueGroup.ReSkin) == "function" then
+        pcall(self.masqueGroup.ReSkin, self.masqueGroup)
     end
 end
 
@@ -260,6 +300,7 @@ end
 function MyDRs:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("MyDRsDB", DEFAULT_CONFIG, true)
     self.drStateByCategory = {}
+    self:InitializeMasque()
     self.drFrame = createDrFrame(self)
     createIconFrames(self.drFrame.iconsContainer, self)
     self.upArrow = self:createArrowButton("UP", -0, -15)

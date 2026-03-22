@@ -41,6 +41,7 @@ function MyDRs:UpdateConfig()
     self:UpdateIconContainerLayout()
     self:SortIcons()
     self:RefreshImmuneAlertGlow()
+    self:RefreshMasqueSkin() -- not sure if needed
 end
 
 function MyDRs:SetupOptions()
@@ -711,6 +712,7 @@ function MyDRs:PlayTestMode()
                 drFrame:Show()
                 drFrame.cooldown:SetCooldown(now, DR_WINDOW_DURATION)
                 drFrame.cooldown:SetSwipeColor(0, 0, 0, self.db.profile.cooldownSwipeAlpha)
+                self:RefreshMasqueSkin()
                 drFrame.startTime = now + (i * 0.001)
 
                 if i == 1 and drFrame.immuneAlert then
