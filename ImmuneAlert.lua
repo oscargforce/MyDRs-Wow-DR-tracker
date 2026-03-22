@@ -116,10 +116,8 @@ local function immuneAlertAnimOut_OnFinished(group)
         ownerFrame.pendingHideAfterImmuneAlert = nil
         ownerFrame:Hide()
     end
-
-    if addon.frame and addon.frame.SortIcons then
-        addon.frame:SortIcons()
-    end
+    
+    MyDRs:SortIcons()
 end
 
 local function createImmuneAlertFrame(parentFrame)

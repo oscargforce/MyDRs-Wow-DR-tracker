@@ -1,5 +1,5 @@
 ## Interface: 120001, 120005
-## Title: My DR Tracker
+## Title: MyDRs
 ## Notes: Tracks Diminishing Returns on players in battlegrounds and arenas
 ## Version: 1.0.4
 ## SavedVariables: MyDRsDB

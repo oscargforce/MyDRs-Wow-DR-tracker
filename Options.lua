@@ -92,10 +92,23 @@ function MyDRs:SetupOptions()
                         type = "description",
                         order = 1,
                     },
+                    orientation = {
+                        order = 1.5,
+                        type = "select",
+                        name = "Bar Orientation",
+                        desc = "Choose the orientation of the DR bar.",
+                        values = { ["HORIZONTAL"] = "Horizontal", ["VERTICAL"] = "Vertical" },
+                        get = function() return self.db.profile.orientation end,
+                        set = function(_, value)
+                            self.db.profile.orientation = value
+                            self:UpdateConfig()
+                            self:RefreshTestAnimation(true)
+                        end,
+                    },
                     growIconsFromLeft = {
                         order = 2,
                         type = "select",
-                        name = "Grow Icons From The:",
+                        name = "Icon Growth Direction",
                         desc = "Choose the direction from which new DR icons will grow when added to the bar.",
                         values = { ["LEFT"] = "Left", ["RIGHT"] = "Right" },
                         get = function() return self.db.profile.growIconsFromLeft and "LEFT" or "RIGHT" end,
@@ -105,6 +118,21 @@ function MyDRs:SetupOptions()
                             self:UpdateConfig()
                             self:RefreshTestAnimation(true)
                         end,
+                        hidden = function() return self.db.profile.orientation == "VERTICAL" end,
+                    },
+                    growDirectionVertical = {
+                        order = 2.2,
+                        type = "select",
+                        name = "Icon Growth Direction",
+                        desc = "Choose the direction from which new DR icons will grow when added to the bar.",
+                        values = { ["UP"] = "Up", ["DOWN"] = "Down" },
+                        get = function() return self.db.profile.growDirectionVertical end,
+                        set = function(_, value)
+                            self.db.profile.growDirectionVertical = value
+                            self:UpdateConfig()
+                            self:RefreshTestAnimation(true)
+                        end,
+                        hidden = function() return self.db.profile.orientation == "HORIZONTAL" end,
                     },
                     lineBreak1 = {
                         name = " ",
@@ -167,7 +195,7 @@ function MyDRs:SetupOptions()
                         order = 5,
                         type = "range",
                         name = "Icon Size",
-                        min = 30,
+                        min = 20,
                         max = 100,
                         step = 1,
                         get = function() return self.db.profile.iconSize end,
@@ -181,7 +209,7 @@ function MyDRs:SetupOptions()
                         type = "range",
                         name = "Icon Padding",
                         min = 0,
-                        max = 20,
+                        max = 40,
                         step = 1,
                         get = function() return self.db.profile.iconPadding end,
                         set = function(_, value)

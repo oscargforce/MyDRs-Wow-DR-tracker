@@ -30,8 +30,10 @@ local DEFAULT_CONFIG = {
         enableTestMode = false, 
         containerPosition = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 },
         iconPadding = 4, 
-        iconSize = 50, 
+        iconSize = 50,
+        orientation = "HORIZONTAL",
         growIconsFromLeft = false, 
+        growDirectionVertical = "DOWN", 
         enableCooldownReverse = true, 
         showCountdownText = true, 
         showDRStateText = true,
@@ -288,13 +290,20 @@ function MyDRs:UpdateIconContainerLayout(iconCount)
     count = math.max(count, 1)
 
     local padding = self:GetBaseIconPadding()
-    local width = (BASE_ICON_SIZE * count) + (padding * (count - 1))
+    local total = (BASE_ICON_SIZE * count) + (padding * (count - 1))
 
     trackerFrame:ClearAllPoints()
-    local anchorPoint = self.db.profile.growIconsFromLeft and "RIGHT" or "LEFT"
-    trackerFrame:SetPoint(anchorPoint, self.drFrame, "CENTER", 0, 0)
 
-    trackerFrame:SetSize(width, BASE_ICON_SIZE)
+    if self.db.profile.orientation == "VERTICAL" then
+        local anchorPoint = self.db.profile.growDirectionVertical == "UP" and "BOTTOM" or "TOP"
+        trackerFrame:SetPoint(anchorPoint, self.drFrame, "CENTER", 0, 0)
+        trackerFrame:SetSize(BASE_ICON_SIZE, total)
+    else
+        local anchorPoint = self.db.profile.growIconsFromLeft and "RIGHT" or "LEFT"
+        trackerFrame:SetPoint(anchorPoint, self.drFrame, "CENTER", 0, 0)
+        trackerFrame:SetSize(total, BASE_ICON_SIZE)
+    end
+
     trackerFrame:SetScale(self:GetIconScale())
 end
 
