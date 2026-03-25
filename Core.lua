@@ -90,6 +90,15 @@ local spellIdToDRCategoryOverrides = {
     [33786] = "disorient", -- Cyclone reports STUN but shares disorient DR.
     [198909] = "disorient", -- Song of Chi-Ji reports STUN but shares disorient DR.
     [51514] = "incapacitate", -- Hex reports NONE but shares incapacitate DR.
+    [277784] = "incapacitate", -- Hex (Wicker Mongrel)
+    [196942] = "incapacitate", -- Hex (Voodoo Totem)
+    [210873] = "incapacitate", -- Hex (Raptor)
+    [211004] = "incapacitate", -- Hex (Spider)
+    [211010] = "incapacitate", -- Hex (Snake)
+    [211015] = "incapacitate", -- Hex (Cockroach)
+    [269352] = "incapacitate", -- Hex (Skeletal Hatchling)
+    [309328] = "incapacitate", -- Hex (Living Honey)
+    [277778] = "incapacitate", -- Hex (Zandalari Tendonripper)
 }
 
 -- These show up in LossOfControl but should not drive DR tracking.
@@ -413,7 +422,7 @@ function MyDRs:UpdateDRs(updateInfo)
     local activeDRs = {}
     local locEntries = {}
 
-    -- First pass: collect all LoC data
+    -- 1) Collect all active Loss of Control entries reported for the player.
     for i = 1, 10 do
         local success, locData = pcall(C_LossOfControl.GetActiveLossOfControlDataByUnit, "player", i)
         if success and locData then
@@ -421,7 +430,7 @@ function MyDRs:UpdateDRs(updateInfo)
         end
     end
 
-    -- Track which spells have non-root categories
+    -- 2) Build a spellID lookup for spells with a non-root DR category. This is used to ignore root LoC if the same spell also has a non-root LoC that should control DR.
     local spellsWithNonRoot = {}
     for _, locData in ipairs(locEntries) do
         local drCat = getDrCategoryForLossOfControl(locData)
@@ -430,9 +439,11 @@ function MyDRs:UpdateDRs(updateInfo)
         end
     end
 
-    -- Process LoCs, skipping root LoCs for spells with non-root categories, example warlock fear also applies a root loc
+    -- 3) Build a map of ActiveDRs -> { auraIds, startTime } for currently active CCs
     for _, locData in ipairs(locEntries) do
         local drCat = getDrCategoryForLossOfControl(locData)
+        -- Ignore root entries when the same spell also produces a non-root DR category.
+        -- Example: Warlock Fear can emit both root and disorient LoCs, but only disorient should count for DR.
         if drCat and not (drCat == "root" and spellsWithNonRoot[locData.spellID]) then
             local drState = activeDRs[drCat]
             if not drState then
@@ -451,6 +462,7 @@ function MyDRs:UpdateDRs(updateInfo)
 
     local now = GetTime()
 
+    -- 4) Per-category update: skip untracked, detect new applications, update visibility
     for _, cat in ipairs(drCategories) do
         local state = self.drStateByCategory[cat]
         if not state then
@@ -467,12 +479,14 @@ function MyDRs:UpdateDRs(updateInfo)
 
         local isTracked = self.db.profile["trackDR_" .. cat]
         if not isTracked then
+            -- Clear state immediately for categories the user is not tracking.
             if state.isActive or state.stacks > 0 or state.expiresAt then
                 self:ResetDRState(cat)
             end
             state.isActive = false
             self:SetDRFrameVisible(cat, false)
         else
+            -- 5) Determine if the current update represents a new CC application
             local active = activeDRs[cat]
             local isActive = active ~= nil
             local newApp = false
@@ -492,7 +506,7 @@ function MyDRs:UpdateDRs(updateInfo)
                     end
                 end
             end
-
+            -- 6) On a new application, advance stacks and clear any old cooldown swipe.
             if newApp then
                 local count = math.min(state.applicationCount + 1, 2)
                 state.applicationCount = count
@@ -506,24 +520,27 @@ function MyDRs:UpdateDRs(updateInfo)
                     frame.cooldown:SetCooldown(0, 0)
                 end
             end
-
+            -- 7) When the CC ends, start the DR timer with the same DR tier the CC reached.
             if state.isActive and not isActive then
                 if state.applicationCount > 0 then
                     self:StartDRWindow(cat, state.applicationCount)
                 end
             end
 
+            -- 8) Save the current active state so the next UNIT_AURA update can detect changes.
             state.isActive = isActive
             state.auraIds = isActive and active.auraIds or nil
             state.lastSeenStartTime = isActive and active.startTime or nil
 
             if isActive then
+                -- While CC is active, keep the icon visible and hide the DR state text.
                 self:SetDRFrameVisible(cat, state.stacks > 0)
                 local frame = self:GetDRFrame(cat)
                 if frame and frame.drStateText then
                     frame.drStateText:Hide()
                 end
             else
+                -- Safety clean up, remove expired drs or keep them visible during the DR window.
                 local expAt = state.expiresAt
                 local inDrWindow = expAt and expAt > now
                 self:SetDRFrameVisible(cat, inDrWindow)
