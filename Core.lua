@@ -1,6 +1,7 @@
 local addonName, addon = ...
 local createImmuneAlertFrame = addon.CreateImmuneAlertFrame
 local immuneAlertResetVisuals = addon.ResetImmuneAlertVisuals
+local createImmuneBorder = addon.CreateImmuneBorder
 local ProfileManager = addon.ProfileManager
 local C_LossOfControl = _G.C_LossOfControl
 local pcall = pcall
@@ -38,6 +39,7 @@ local DEFAULT_CONFIG = {
         showCountdownText = true, 
         showDRStateText = true,
         enableImmuneAlertGlow = true,
+        enableImmuneBorder = true,
         fontSize = 16, 
         cooldownSwipeAlpha = 1, 
         enableInArena = true,
@@ -193,7 +195,8 @@ local function createIconFrames(parentFrame, MyDRs)
         cooldown:SetSwipeColor(0, 0, 0, db.cooldownSwipeAlpha)
 
         local immuneAlert = createImmuneAlertFrame(drFrame)
-
+        local immuneBorder = createImmuneBorder(drFrame)
+        
         local callbackCategory = category
         pcall(function()
             cooldown:HookScript("OnCooldownDone", function()
@@ -219,6 +222,7 @@ local function createIconFrames(parentFrame, MyDRs)
         drFrame.icon = icon
         drFrame.cooldown = cooldown
         drFrame.immuneAlert = immuneAlert
+        drFrame.immuneBorder = immuneBorder
         drFrame.drStateText = drStateText
         drFrame.category = category
         drFrame.sortIndex = i
@@ -512,7 +516,7 @@ function MyDRs:UpdateDRs(updateInfo)
                 state.applicationCount = count
                 if count > state.stacks then
                     state.stacks = count
-                    self:SetImmuneGlow(cat, self.db.profile.enableImmuneAlertGlow and count >= 2)
+                    self:UpdateImmuneVisuals(cat, count >= 2)
                 end
 
                 local frame = self:GetDRFrame(cat)
@@ -574,7 +578,7 @@ function MyDRs:SetDRStateText(category, stacks)
 
     frame.drStateText:SetText(getDrStateTextFromStacks(stacks, self.db.profile))
     frame.drStateText:SetShown(self.db.profile.showDRStateText)
-    self:SetImmuneGlow(category, self.db.profile.enableImmuneAlertGlow and stacks >= 2)
+    self:UpdateImmuneVisuals(category, stacks >= 2)
 end
 
 function MyDRs:StartDRWindow(category, stackOverride)
@@ -636,6 +640,7 @@ function MyDRs:SetDRFrameVisible(category, isVisible)
         if immuneAlert and (immuneAlert.isActive or immuneAlert.animIn:IsPlaying() or immuneAlert.animOut:IsPlaying()) then
             frame.pendingHideAfterImmuneAlert = true
             self:SetImmuneGlow(category, false)
+            self:SetImmuneBorder(category, false)
         else
             frame:Hide()
             self:SortIcons()
@@ -643,22 +648,12 @@ function MyDRs:SetDRFrameVisible(category, isVisible)
     end
 end
 
-function MyDRs:ResetDRState(category)
-    local frame = self:GetDRFrame(category)
-    local drState = self.drStateByCategory[category]
+function MyDRs:UpdateImmuneVisuals(category, isImmune)
+    local useGlow = self.db.profile.enableImmuneAlertGlow and isImmune
+    local useBorder = (not self.db.profile.enableImmuneAlertGlow) and isImmune and self.db.profile.enableImmuneBorder
 
-    if drState then
-        drState.expiresAt = nil
-        drState.stacks = 0
-        drState.applicationCount = 0
-        drState.auraIds = nil
-        drState.lastSeenStartTime = nil
-    end
-
-    if frame then
-        frame.startTime = nil
-    end
-    self:SetDRStateText(category, 0)
+    self:SetImmuneGlow(category, useGlow)
+    self:SetImmuneBorder(category, useBorder)
 end
 
 function MyDRs:SetImmuneGlow(category, isVisible)
@@ -702,6 +697,34 @@ function MyDRs:SetImmuneGlow(category, isVisible)
     end
 end
 
+function MyDRs:SetImmuneBorder(category, isVisible)
+    local frame = self:GetDRFrame(category)    
+    if isVisible then
+        frame:Show()
+        frame.immuneBorder:Show()
+    else
+        frame.immuneBorder:Hide()
+    end
+end
+
+function MyDRs:ResetDRState(category)
+    local frame = self:GetDRFrame(category)
+    local drState = self.drStateByCategory[category]
+
+    if drState then
+        drState.expiresAt = nil
+        drState.stacks = 0
+        drState.applicationCount = 0
+        drState.auraIds = nil
+        drState.lastSeenStartTime = nil
+    end
+
+    if frame then
+        frame.startTime = nil
+    end
+    self:SetDRStateText(category, 0)
+end
+
 function MyDRs:ResetAllDRStates()
     if self.db.profile.enableTestMode then
         return
@@ -734,6 +757,7 @@ function MyDRs:ResetAllDRStates()
                 immuneAlert:Hide()
             end
 
+            frame.immuneBorder:Hide()
             frame:Hide()
         end
     end

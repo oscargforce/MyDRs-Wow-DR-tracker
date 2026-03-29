@@ -41,6 +41,7 @@ function MyDRs:UpdateConfig()
     self:UpdateIconContainerLayout()
     self:SortIcons()
     self:RefreshImmuneAlertGlow()
+    self:RefreshTestModeImmuneVisuals()
     self:RefreshMasqueSkin() -- not sure if needed
 end
 
@@ -183,8 +184,21 @@ function MyDRs:SetupOptions()
                         set = function(_, value)
                             self.db.profile.enableImmuneAlertGlow = value
                             self:RefreshImmuneAlertGlow()
-                            self:RefreshTestAnimation(self.db.profile.enableImmuneAlertGlow)
+                            self:RefreshTestAnimation(true)
                         end,
+                    },
+                    enableImmuneBorder = {
+                        order = 4.2,
+                        type = "toggle",
+                        name = "Enable Immune Border",
+                        desc = "If Immune Glow is disabled, toggle the visibility of a red “immune” border on DR icons.",
+                        get = function() return self.db.profile.enableImmuneBorder end,
+                        set = function(_, value)
+                            self.db.profile.enableImmuneBorder = value
+                            self:RefreshImmuneAlertGlow()
+                            self:RefreshTestAnimation(true)
+                        end,
+                        disabled = function() return self.db.profile.enableImmuneAlertGlow end,
                     },
                     lineBreak2 = {
                         name = " ",
@@ -773,12 +787,21 @@ function MyDRs:PlayTestMode()
 end
 
 function MyDRs:RefreshImmuneAlertGlow()
-    local glowEnabled = self.db.profile.enableImmuneAlertGlow
-
     for _, category in ipairs(drCategories) do
         local state = self.drStateByCategory[category]
         local stacks = state and state.stacks or 0
-        self:SetImmuneGlow(category, glowEnabled and stacks >= 2)
+        self:UpdateImmuneVisuals(category, stacks >= 2)
+    end
+end
+
+function MyDRs:RefreshTestModeImmuneVisuals()
+    if not self.db.profile.enableTestMode then
+        return
+    end
+
+    local previewCategory = drCategories[1]
+    if previewCategory and self.db.profile["trackDR_" .. previewCategory] then
+        self:UpdateImmuneVisuals(previewCategory, true)
     end
 end
 
