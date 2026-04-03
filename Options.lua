@@ -9,6 +9,11 @@ local LibStub = LibStub
 local InterfaceOptionsFrame_OpenToCategory = InterfaceOptionsFrame_OpenToCategory
 local Settings = Settings
 
+function MyDRs:GetBaseFontSize()
+    local scale = self:GetIconScale()
+    return scale > 0 and (self.db.profile.fontSize / scale) or self.db.profile.fontSize
+end
+
 function MyDRs:UpdateConfig()
     local db = self.db.profile
     local fontSize = self:GetBaseFontSize()

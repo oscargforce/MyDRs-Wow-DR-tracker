@@ -233,6 +233,74 @@ local function createIconFrames(parentFrame, MyDRs)
     end
 end
 
+function MyDRs:OnInitialize()
+    self.db = LibStub("AceDB-3.0"):New("MyDRsDB", DEFAULT_CONFIG, true)
+    self.drStateByCategory = {}
+    self:InitializeMasque()
+    self.drFrame = createDrFrame(self)
+    createIconFrames(self.drFrame.iconsContainer, self)
+    self.upArrow = self:createArrowButton("UP", -0, -15)
+    self.downArrow = self:createArrowButton("DOWN", 0, -45)
+    self.leftArrow = self:createArrowButton("LEFT", -15, -30)
+    self.rightArrow = self:createArrowButton("RIGHT", 15, -30)
+
+    self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
+    self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
+    self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
+	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+	self:RegisterEvent("PLAYER_ENTERING_WORLD")
+	self:RegisterEvent("ARENA_PREP_OPPONENT_SPECIALIZATIONS")
+    self:UpdateConfig()
+    self:SetupOptions()
+    self:applyTestMode()
+    self:ApplyZoneState()
+end
+
+function MyDRs:OnProfileChanged()
+    self:UpdateConfig()
+    self:applyTestMode()
+    self:ApplyZoneState()
+end
+
+function MyDRs:ZONE_CHANGED_NEW_AREA()
+   self:ApplyZoneState()
+end
+
+function MyDRs:ApplyZoneState()
+    self:ResetAllDRStates()
+    if self:IsEnabledForCurrentZone() then
+        self:RegisterEvent("UNIT_AURA")
+    else
+        self:UnregisterEvent("UNIT_AURA")
+    end
+end
+
+function MyDRs:UNIT_AURA(_, unit, updateInfo)
+    if unit ~= "player" then
+        return
+    end
+    self:UpdateDRs(updateInfo)
+end
+
+function MyDRs:PLAYER_ENTERING_WORLD()
+   self:ApplyZoneState()
+end
+
+function MyDRs:ARENA_PREP_OPPONENT_SPECIALIZATIONS()
+    self:ResetAllDRStates()
+end
+
+function MyDRs:IsEnabledForCurrentZone()
+    local _, instanceType = IsInInstance()
+    if instanceType == "arena" then
+        return self.db.profile.enableInArena
+    elseif instanceType == "pvp" then
+        return self.db.profile.enableInBattleground
+    else
+        return self.db.profile.enableInWorld
+    end
+end
+
 function MyDRs:InitializeMasque()
     if not Masque then
         return
@@ -265,126 +333,6 @@ function MyDRs:RefreshMasqueSkin()
 
     if type(self.masqueGroup.ReSkin) == "function" then
         pcall(self.masqueGroup.ReSkin, self.masqueGroup)
-    end
-end
-
-function MyDRs:GetIconContainer()
-    return self.drFrame.iconsContainer
-end
-
-function MyDRs:GetIconScale()
-    return self.db.profile.iconSize / BASE_ICON_SIZE
-end
-
-function MyDRs:GetBaseIconPadding()
-    local scale = self:GetIconScale()
-    return scale > 0 and (self.db.profile.iconPadding / scale) or self.db.profile.iconPadding
-end
-
-function MyDRs:GetBaseFontSize()
-    local scale = self:GetIconScale()
-    return scale > 0 and (self.db.profile.fontSize / scale) or self.db.profile.fontSize
-end
-
-function MyDRs:GetTrackedCategoryCount()
-    local count = 0
-    for _, category in ipairs(drCategories) do
-        if self.db.profile["trackDR_" .. category] then
-            count = count + 1
-        end
-    end
-    return count
-end
-
-function MyDRs:UpdateIconContainerLayout(iconCount)
-    local trackerFrame = self:GetIconContainer()
-    
-    local count = (iconCount and iconCount > 0) and iconCount or self:GetTrackedCategoryCount()
-    count = math.max(count, 1)
-
-    local padding = self:GetBaseIconPadding()
-    local total = (BASE_ICON_SIZE * count) + (padding * (count - 1))
-
-    trackerFrame:ClearAllPoints()
-
-    if self.db.profile.orientation == "VERTICAL" then
-        local anchorPoint = self.db.profile.growDirectionVertical == "UP" and "BOTTOM" or "TOP"
-        trackerFrame:SetPoint(anchorPoint, self.drFrame, "CENTER", 0, 0)
-        trackerFrame:SetSize(BASE_ICON_SIZE, total)
-    else
-        local anchorPoint = self.db.profile.growIconsFromLeft and "RIGHT" or "LEFT"
-        trackerFrame:SetPoint(anchorPoint, self.drFrame, "CENTER", 0, 0)
-        trackerFrame:SetSize(total, BASE_ICON_SIZE)
-    end
-
-    trackerFrame:SetScale(self:GetIconScale())
-end
-
-function MyDRs:OnInitialize()
-    self.db = LibStub("AceDB-3.0"):New("MyDRsDB", DEFAULT_CONFIG, true)
-    self.drStateByCategory = {}
-    self:InitializeMasque()
-    self.drFrame = createDrFrame(self)
-    createIconFrames(self.drFrame.iconsContainer, self)
-    self.upArrow = self:createArrowButton("UP", -0, -15)
-    self.downArrow = self:createArrowButton("DOWN", 0, -45)
-    self.leftArrow = self:createArrowButton("LEFT", -15, -30)
-    self.rightArrow = self:createArrowButton("RIGHT", 15, -30)
-
-    self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
-    self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
-    self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
-	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-	self:RegisterEvent("PLAYER_ENTERING_WORLD")
-	self:RegisterEvent("ARENA_PREP_OPPONENT_SPECIALIZATIONS")
-    self:UpdateConfig()
-    self:SetupOptions()
-    self:applyTestMode()
-    self:ApplyZoneState()
-end
-
-function MyDRs:OnProfileChanged()
-    self:UpdateConfig()
-    self:applyTestMode()
-    self:ApplyZoneState()
-end
-
-function MyDRs:UNIT_AURA(_, unit, updateInfo)
-    if unit ~= "player" then
-        return
-    end
-    self:UpdateDRs(updateInfo)
-end
-
-function MyDRs:ZONE_CHANGED_NEW_AREA()
-   self:ApplyZoneState()
-end
-
-function MyDRs:PLAYER_ENTERING_WORLD()
-   self:ApplyZoneState()
-end
-
-function MyDRs:ARENA_PREP_OPPONENT_SPECIALIZATIONS()
-    self:ResetAllDRStates()
-end
-
-function MyDRs:IsEnabledForCurrentZone()
-    local _, instanceType = IsInInstance()
-    if instanceType == "arena" then
-        return self.db.profile.enableInArena
-    elseif instanceType == "pvp" then
-        return self.db.profile.enableInBattleground
-    else
-        return self.db.profile.enableInWorld
-    end
-end
-
-function MyDRs:ApplyZoneState()
-    self:ResetAllDRStates()
-    if self:IsEnabledForCurrentZone() then
-        self:RegisterEvent("UNIT_AURA")
-    else
-        self:UnregisterEvent("UNIT_AURA")
     end
 end
 
@@ -648,12 +596,8 @@ function MyDRs:SetDRFrameVisible(category, isVisible)
     end
 end
 
-function MyDRs:UpdateImmuneVisuals(category, isImmune)
-    local useGlow = self.db.profile.enableImmuneAlertGlow and isImmune
-    local useBorder = (not self.db.profile.enableImmuneAlertGlow) and isImmune and self.db.profile.enableImmuneBorder
-
-    self:SetImmuneGlow(category, useGlow)
-    self:SetImmuneBorder(category, useBorder)
+function MyDRs:SortIcons(skipSort)
+    self:SortVisibleDRIcons(drCategories, skipSort)
 end
 
 function MyDRs:SetImmuneGlow(category, isVisible)
@@ -705,6 +649,14 @@ function MyDRs:SetImmuneBorder(category, isVisible)
     else
         frame.immuneBorder:Hide()
     end
+end
+
+function MyDRs:UpdateImmuneVisuals(category, isImmune)
+    local useGlow = self.db.profile.enableImmuneAlertGlow and isImmune
+    local useBorder = (not self.db.profile.enableImmuneAlertGlow) and isImmune and self.db.profile.enableImmuneBorder
+
+    self:SetImmuneGlow(category, useGlow)
+    self:SetImmuneBorder(category, useBorder)
 end
 
 function MyDRs:ResetDRState(category)
@@ -765,8 +717,51 @@ function MyDRs:ResetAllDRStates()
     self:SortIcons()
 end
 
-function MyDRs:SortIcons(skipSort)
-    self:SortVisibleDRIcons(drCategories, skipSort)
+function MyDRs:GetIconScale()
+    return self.db.profile.iconSize / BASE_ICON_SIZE
+end
+
+function MyDRs:GetBaseIconPadding()
+    local scale = self:GetIconScale()
+    return scale > 0 and (self.db.profile.iconPadding / scale) or self.db.profile.iconPadding
+end
+
+function MyDRs:GetTrackedCategoryCount()
+    local count = 0
+    for _, category in ipairs(drCategories) do
+        if self.db.profile["trackDR_" .. category] then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+function MyDRs:GetIconContainer()
+    return self.drFrame.iconsContainer
+end
+
+function MyDRs:UpdateIconContainerLayout(iconCount)
+    local trackerFrame = self:GetIconContainer()
+    
+    local count = (iconCount and iconCount > 0) and iconCount or self:GetTrackedCategoryCount()
+    count = math.max(count, 1)
+
+    local padding = self:GetBaseIconPadding()
+    local total = (BASE_ICON_SIZE * count) + (padding * (count - 1))
+
+    trackerFrame:ClearAllPoints()
+
+    if self.db.profile.orientation == "VERTICAL" then
+        local anchorPoint = self.db.profile.growDirectionVertical == "UP" and "BOTTOM" or "TOP"
+        trackerFrame:SetPoint(anchorPoint, self.drFrame, "CENTER", 0, 0)
+        trackerFrame:SetSize(BASE_ICON_SIZE, total)
+    else
+        local anchorPoint = self.db.profile.growIconsFromLeft and "RIGHT" or "LEFT"
+        trackerFrame:SetPoint(anchorPoint, self.drFrame, "CENTER", 0, 0)
+        trackerFrame:SetSize(total, BASE_ICON_SIZE)
+    end
+
+    trackerFrame:SetScale(self:GetIconScale())
 end
 
 --[[
