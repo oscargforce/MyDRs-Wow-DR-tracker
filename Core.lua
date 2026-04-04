@@ -2,6 +2,7 @@ local addonName, addon = ...
 local createImmuneAlertFrame = addon.CreateImmuneAlertFrame
 local immuneAlertResetVisuals = addon.ResetImmuneAlertVisuals
 local createImmuneBorder = addon.CreateImmuneBorder
+local createPreImmuneBorder = addon.CreatePreImmuneBorder
 local ProfileManager = addon.ProfileManager
 local C_LossOfControl = _G.C_LossOfControl
 local pcall = pcall
@@ -40,6 +41,7 @@ local DEFAULT_CONFIG = {
         showDRStateText = true,
         enableImmuneAlertGlow = true,
         enableImmuneBorder = true,
+        enablePreImmuneBorder = false,
         fontSize = 16, 
         cooldownSwipeAlpha = 1, 
         enableInArena = true,
@@ -196,6 +198,7 @@ local function createIconFrames(parentFrame, MyDRs)
 
         local immuneAlert = createImmuneAlertFrame(drFrame)
         local immuneBorder = createImmuneBorder(drFrame)
+        local preImmuneBorder = createPreImmuneBorder(drFrame)
         
         local callbackCategory = category
         pcall(function()
@@ -223,6 +226,7 @@ local function createIconFrames(parentFrame, MyDRs)
         drFrame.cooldown = cooldown
         drFrame.immuneAlert = immuneAlert
         drFrame.immuneBorder = immuneBorder
+        drFrame.preImmuneBorder = preImmuneBorder
         drFrame.drStateText = drStateText
         drFrame.category = category
         drFrame.sortIndex = i
@@ -589,6 +593,7 @@ function MyDRs:SetDRFrameVisible(category, isVisible)
             frame.pendingHideAfterImmuneAlert = true
             self:SetImmuneGlow(category, false)
             self:SetImmuneBorder(category, false)
+            self:SetPreImmuneBorder(category, false)
         else
             frame:Hide()
             self:SortIcons()
@@ -651,12 +656,24 @@ function MyDRs:SetImmuneBorder(category, isVisible)
     end
 end
 
+function MyDRs:SetPreImmuneBorder(category, isVisible)
+    local frame = self:GetDRFrame(category)
+    if isVisible then
+        frame:Show()
+        frame.preImmuneBorder:Show()
+    else
+        frame.preImmuneBorder:Hide()
+    end
+end
+
 function MyDRs:UpdateImmuneVisuals(category, isImmune)
     local useGlow = self.db.profile.enableImmuneAlertGlow and isImmune
     local useBorder = (not self.db.profile.enableImmuneAlertGlow) and isImmune and self.db.profile.enableImmuneBorder
+    local usePreImmuneBorder = self.db.profile.enablePreImmuneBorder and (not isImmune)
 
     self:SetImmuneGlow(category, useGlow)
     self:SetImmuneBorder(category, useBorder)
+    self:SetPreImmuneBorder(category, usePreImmuneBorder)
 end
 
 function MyDRs:ResetDRState(category)
@@ -710,6 +727,7 @@ function MyDRs:ResetAllDRStates()
             end
 
             frame.immuneBorder:Hide()
+            frame.preImmuneBorder:Hide()
             frame:Hide()
         end
     end

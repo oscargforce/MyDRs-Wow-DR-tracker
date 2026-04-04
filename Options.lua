@@ -205,6 +205,18 @@ function MyDRs:SetupOptions()
                         end,
                         disabled = function() return self.db.profile.enableImmuneAlertGlow end,
                     },
+                    enablePreImmuneBorder = {
+                        order = 4.3,
+                        type = "toggle",
+                        name = "Enable Green Border",
+                        desc = "Show a green border when not immune.",
+                        get = function() return self.db.profile.enablePreImmuneBorder end,
+                        set = function(_, value)
+                            self.db.profile.enablePreImmuneBorder = value
+                            self:RefreshImmuneAlertGlow()
+                            self:RefreshTestAnimation(true)
+                        end,
+                    },
                     lineBreak2 = {
                         name = " ",
                         type = "description",

@@ -231,4 +231,26 @@ local function createImmuneBorder(parentFrame)
     return borderFrame
 end
 
+-- GREEN PRE-IMMUNE BORDER
+local function createPreImmuneBorder(parentFrame)
+    local r, g, b, a = 0, 1, 0, 1
+    local borderPadding = 1
+
+    local borderFrame = CreateFrame("Frame", nil, parentFrame)
+    borderFrame:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", -borderPadding, borderPadding)
+    borderFrame:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", borderPadding, -borderPadding)
+    borderFrame:SetFrameLevel(parentFrame:GetFrameLevel() + 8)
+
+    borderFrame.borderTexture = borderFrame:CreateTexture(nil, "OVERLAY")
+    borderFrame.borderTexture:SetAllPoints()
+    borderFrame.borderTexture:SetTexture("Interface\\Buttons\\UI-Debuff-Overlays")
+    borderFrame.borderTexture:SetTexCoord(0.296875, 0.5703125, 0, 0.515625)
+    borderFrame.borderTexture:SetVertexColor(r, g, b, a)
+
+    borderFrame:Hide()
+
+    return borderFrame
+end
+
 addon.CreateImmuneBorder = createImmuneBorder
+addon.CreatePreImmuneBorder = createPreImmuneBorder
