@@ -220,7 +220,6 @@ local function createIconFrames(parentFrame, MyDRs)
         local drStateText = cooldown:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         drStateText:SetPoint("BOTTOM", cooldown, "BOTTOM", 0, 2)
         drStateText:SetFont(drStateText:GetFont(), db.fontSize / scale, "OUTLINE")
-        drStateText:SetText("100%")
 
         drFrame.icon = icon
         drFrame.cooldown = cooldown
@@ -510,7 +509,7 @@ end
 
 local function getDrStateTextFromStacks(stacks, db)
     if stacks <= 0 then
-        return db.enableTestMode and "50%" or "100%"
+        return db.enableTestMode and "50%" or ""
     elseif stacks == 1 then
         return "50%"
     end

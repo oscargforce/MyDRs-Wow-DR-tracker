@@ -213,7 +213,6 @@ function MyDRs:SetupOptions()
                         get = function() return self.db.profile.enablePreImmuneBorder end,
                         set = function(_, value)
                             self.db.profile.enablePreImmuneBorder = value
-                            self:RefreshImmuneAlertGlow()
                             self:RefreshTestAnimation(true)
                         end,
                     },
@@ -804,10 +803,13 @@ function MyDRs:PlayTestMode()
 end
 
 function MyDRs:RefreshImmuneAlertGlow()
+    local profile = self.db.profile
     for _, category in ipairs(drCategories) do
-        local state = self.drStateByCategory[category]
-        local stacks = state and state.stacks or 0
-        self:UpdateImmuneVisuals(category, stacks >= 2)
+        if profile["trackDR_" .. category] then
+           local state = self.drStateByCategory[category]
+           local stacks = state and state.stacks or 0
+           self:UpdateImmuneVisuals(category, stacks >= 2)
+        end
     end
 end
 
