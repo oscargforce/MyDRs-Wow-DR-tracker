@@ -45,7 +45,10 @@ local function immuneAlertResetVisuals(alertFrame)
         return
     end
 
-    local frameWidth, frameHeight = alertFrame:GetSize()
+    local parentFrame = alertFrame:GetParent()
+    local parentWidth, parentHeight = parentFrame:GetSize()
+    local frameWidth = parentWidth * (1 + 2 * IMMUNE_ALERT_FRAME_PADDING)
+    local frameHeight = parentHeight * (1 + 2 * IMMUNE_ALERT_FRAME_PADDING)
 
     alertFrame.spark:SetAlpha(0)
     alertFrame.spark:SetSize(frameWidth, frameHeight)
@@ -61,7 +64,10 @@ end
 
 local function immuneAlertAnimIn_OnPlay(group)
     local alertFrame = group:GetParent()
-    local frameWidth, frameHeight = alertFrame:GetSize()
+    local parentFrame = alertFrame:GetParent()
+    local parentWidth, parentHeight = parentFrame:GetSize()
+    local frameWidth = parentWidth * (1 + 2 * IMMUNE_ALERT_FRAME_PADDING)
+    local frameHeight = parentHeight * (1 + 2 * IMMUNE_ALERT_FRAME_PADDING)
 
     alertFrame.spark:SetSize(frameWidth, frameHeight)
     alertFrame.spark:SetAlpha(0.3)
@@ -81,7 +87,10 @@ end
 
 local function immuneAlertAnimIn_OnFinished(group)
     local alertFrame = group:GetParent()
-    local frameWidth, frameHeight = alertFrame:GetSize()
+    local parentFrame = alertFrame:GetParent()
+    local parentWidth, parentHeight = parentFrame:GetSize()
+    local frameWidth = parentWidth * (1 + 2 * IMMUNE_ALERT_FRAME_PADDING)
+    local frameHeight = parentHeight * (1 + 2 * IMMUNE_ALERT_FRAME_PADDING)
 
     alertFrame.spark:SetAlpha(0)
     alertFrame.innerGlow:SetAlpha(0)

@@ -41,13 +41,19 @@ function MyDRs:UpdateConfig()
     end
 
     local position = db.containerPosition
-    self.drFrame:ClearAllPoints()
-    self.drFrame:SetPoint(position.point, UIParent, position.relativePoint, position.x or 0, position.y or 0)
     self:UpdateIconContainerLayout()
     self:SortIcons()
     self:RefreshImmuneAlertGlow()
     self:RefreshTestModeImmuneVisuals()
     self:RefreshMasqueSkin() -- not sure if needed
+end
+
+-- Helper function to deal with TOPLEFT anchoring and offsets for UIParent
+local function getDefaultPositionCoords()
+    local isUIParent = MyDRs.db.profile.anchorFrame == "UIParent"
+    local x = isUIParent and 800 or 0
+    local y = isUIParent and -500 or 0  
+    return x, y
 end
 
 function MyDRs:SetupOptions()
@@ -66,8 +72,7 @@ function MyDRs:SetupOptions()
                 desc = "Reset the position of the DR bar to its default location.",
                 order = 0,
                 func = function()
-                    self.db.profile.containerPosition = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
-                    self:UpdateConfig()
+                    self:SaveAndApplyPosition(getDefaultPositionCoords())
                 end,
                 width = 0.7,
             },
@@ -139,6 +144,22 @@ function MyDRs:SetupOptions()
                             self:RefreshTestAnimation(true)
                         end,
                         hidden = function() return self.db.profile.orientation == "HORIZONTAL" end,
+                    },
+                    anchorFrame = {
+                        order = 2.3,
+                        type = "select",
+                        name = "Select Anchor Frame",
+                        desc = "Choose which frame the DR bar will attach to.\n\n" ..
+                               "The DR bar will stay anchored to the selected frame and automatically move with that frame's layout changes.\n\n" ..
+                               "|cFFFFFF00Note about UI Parent:|r " ..
+                               "Selecting |cFF00C0FFUI Parent|r anchors the DR bar to the main game UI instead of a unit frame." ..
+                               "This keeps it fixed on your screen and prevents it from moving with frames.",
+                        values = { ["PlayerFrame"] = "Player Frame", ["TargetFrame"] = "Target Frame", ["FocusFrame"] = "Focus Frame", ["UIParent"] = "UI Parent", ["PartyFrame"] = "Party Frame", ["CompactRaidFrameContainer"] = "Raid Frame" },
+                        get = function() return self.db.profile.anchorFrame end,
+                        set = function(_, value)
+                            self.db.profile.anchorFrame = value
+                            self:SaveAndApplyPosition(getDefaultPositionCoords())
+                        end,
                     },
                     lineBreak1 = {
                         name = " ",
@@ -649,7 +670,7 @@ function MyDRs:createArrowButton(direction, x, y)
     end
 
     button:SetScript("OnClick", function()
-        local point, _, relPoint, xOffset, yOffset = parent:GetPoint()
+        local xOffset, yOffset = MyDRs:GetCurrentPositionOffset()
 
         if direction == "UP" then
             yOffset = yOffset + 1
@@ -661,10 +682,7 @@ function MyDRs:createArrowButton(direction, x, y)
             xOffset = xOffset + 1
         end
 
-        parent:ClearAllPoints()
-        parent:SetPoint(point, UIParent, relPoint, xOffset, yOffset)
-
-        MyDRs.db.profile.containerPosition = { point = point, relativePoint = relPoint, x = xOffset, y = yOffset }
+        MyDRs:SaveAndApplyPosition(xOffset, yOffset)
     end)
 
     return button

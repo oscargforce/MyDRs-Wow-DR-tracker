@@ -28,9 +28,14 @@ local BASE_ICON_SIZE = 50
 addon.BASE_ICON_SIZE = BASE_ICON_SIZE
 
 local DEFAULT_CONFIG = {
+    global = {
+        hasShownAnchorAddedNotice = false,
+    },
     profile = {
+        anchorFrame = "UIParent",
         enableTestMode = false, 
-        containerPosition = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 },
+        containerPosition = { point = "TOPLEFT", relativePoint = "TOPLEFT", x = 800, y = -500 },
+        hasMigratedPosition = false,
         iconPadding = 4, 
         iconSize = 50,
         orientation = "HORIZONTAL",
@@ -66,6 +71,20 @@ local DEFAULT_CONFIG = {
 
 local DR_WINDOW_DURATION = 16
 addon.DR_WINDOW_DURATION = DR_WINDOW_DURATION
+
+local function MarkPendingCenterMigrations(db)
+    if not db or not db.profiles then
+        return
+    end
+
+    -- Run before AceDB:New so we can detect truly unsaved `point` fields from old CENTER profiles.
+    for _, profileData in pairs(db.profiles) do
+        local pos = profileData.containerPosition
+        if pos and pos.x ~= nil and pos.point == nil and not profileData.hasMigratedPosition then
+            profileData._pendingCenterMigration = true
+        end
+    end
+end
 
 local drCategories = { "stun", "disorient", "incapacitate", "root", "silence", "knockback", "disarm" }
 addon.drCategories = drCategories
@@ -120,30 +139,87 @@ local nonDrLossOfControlSpellIds = {
     [45334] = true,  -- Bear Charge
 }
 
+local function ResolveAnchorFrame(anchorFrameName)
+    return _G[anchorFrameName] or UIParent
+end
+
+local function GetOffsetRelativeTo(frame, ourParent)
+    local parent = ourParent or UIParent
+    if not frame or not parent then
+        return 0, 0
+    end
+
+    local scale = frame:GetEffectiveScale()
+    local parentScale = parent:GetEffectiveScale()
+    local x = (frame:GetLeft() * scale - parent:GetLeft() * parentScale) / parentScale
+    local y = (frame:GetTop() * scale - parent:GetTop() * parentScale) / parentScale
+    return x, y
+end
+
+function MyDRs:SaveAndApplyPosition(x, y)
+    local posX = x or self.db.profile.containerPosition.x
+    local posY = y or self.db.profile.containerPosition.y
+    local anchorFrame = ResolveAnchorFrame(self.db.profile.anchorFrame)
+    self.drFrame:ClearAllPoints()  -- remove UIParent anchor set by StartMoving()
+    self.drFrame:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", posX, posY)
+    self.db.profile.containerPosition = { point = "TOPLEFT", relativePoint = "TOPLEFT", x = posX, y = posY }
+    self.db.profile.hasMigratedPosition = true
+end
+
+function MyDRs:GetCurrentPositionOffset()
+    local anchorFrame = ResolveAnchorFrame(self.db.profile.anchorFrame)
+    return GetOffsetRelativeTo(self.drFrame, anchorFrame)
+end
+
+function MyDRs:MigrateLegacyPositionIfNeeded()
+    local profile = self.db.profile
+    if profile.hasMigratedPosition then
+        return
+    end
+
+    local position = profile.containerPosition
+    local anchorFrame = ResolveAnchorFrame(profile.anchorFrame)
+    local hasNonTopLeftAnchor = position.point and position.relativePoint
+        and (position.point ~= "TOPLEFT" or position.relativePoint ~= "TOPLEFT")
+
+    if profile._pendingCenterMigration then
+        -- Old profile: x/y were CENTER-based offsets. Convert to TOPLEFT.
+        self.drFrame:ClearAllPoints()
+        self.drFrame:SetPoint("CENTER", anchorFrame, "CENTER", position.x, position.y)
+        local migratedX, migratedY = GetOffsetRelativeTo(self.drFrame, anchorFrame)
+        profile._pendingCenterMigration = nil
+        self:SaveAndApplyPosition(migratedX, migratedY)
+    elseif hasNonTopLeftAnchor then
+        -- Older saved profiles may carry non-TOPLEFT anchors. Convert once to TOPLEFT offsets.
+        self.drFrame:ClearAllPoints()
+        self.drFrame:SetPoint(position.point, anchorFrame, position.relativePoint, position.x, position.y)
+        local migratedX, migratedY = GetOffsetRelativeTo(self.drFrame, anchorFrame)
+        self:SaveAndApplyPosition(migratedX, migratedY)
+    else
+        -- Fresh profile or already TOPLEFT-based — use stored x/y as-is.
+        self:SaveAndApplyPosition(position.x, position.y)
+    end
+end
+
 local function createDrFrame(myDRs)
-    local containerFrame = CreateFrame("Frame", "MyDRsContainer", UIParent, "BackdropTemplate")
+    local db = myDRs.db.profile
+    local position = db.containerPosition
+    local anchorFrame = ResolveAnchorFrame(db.anchorFrame)
+    local containerFrame = CreateFrame("Frame", "MyDRsContainer", anchorFrame, "BackdropTemplate")
     containerFrame:SetClampedToScreen(false)
     containerFrame:SetFrameStrata("MEDIUM")
     containerFrame:SetSize(1, 1)
     containerFrame:ClearAllPoints()
-    local db = myDRs.db.profile
-    local position = db.containerPosition
-    containerFrame:SetPoint(position.point, UIParent, position.relativePoint, position.x, position.y)
+    containerFrame:SetPoint(position.point, anchorFrame, position.relativePoint, position.x, position.y)
 
-    containerFrame:SetScript("OnMouseDown", function(self, button)
-        if button == "LeftButton" then
-            self:StartMoving()
-        end
+    containerFrame:RegisterForDrag("LeftButton")
+    containerFrame:SetScript("OnDragStart", function(self)
+        self:StartMoving()
     end)
-
-    containerFrame:SetScript("OnMouseUp", function(self, button)
-        if button == "LeftButton" then
-            self:StopMovingOrSizing()
-
-            local point, _, relPoint, xOfs, yOfs = self:GetPoint()
-
-            myDRs.db.profile.containerPosition = { point = point, relativePoint = relPoint, x = xOfs, y = yOfs }
-        end
+    containerFrame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local x, y = myDRs:GetCurrentPositionOffset()
+        myDRs:SaveAndApplyPosition(x, y)
     end)
 
     local iconsContainer = CreateFrame("Frame", "$parentIcons", containerFrame, "BackdropTemplate")
@@ -151,20 +227,20 @@ local function createDrFrame(myDRs)
     iconsContainer:SetSize(BASE_ICON_SIZE, BASE_ICON_SIZE)
     iconsContainer:SetScale(db.iconSize / BASE_ICON_SIZE)
     iconsContainer:EnableMouse(false)
-    iconsContainer:SetScript("OnMouseDown", function(_, button)
-        if button == "LeftButton" and containerFrame:IsMovable() then
+    iconsContainer:RegisterForDrag("LeftButton")
+    iconsContainer:SetScript("OnDragStart", function()
+        if containerFrame:IsMovable() then
             containerFrame:StartMoving()
         end
     end)
-    iconsContainer:SetScript("OnMouseUp", function(_, button)
-        if button ~= "LeftButton" or not containerFrame:IsMovable() then
+    iconsContainer:SetScript("OnDragStop", function()
+        if not containerFrame:IsMovable() then
             return
         end
 
         containerFrame:StopMovingOrSizing()
-
-        local point, _, relPoint, xOfs, yOfs = containerFrame:GetPoint()
-        myDRs.db.profile.containerPosition = { point = point, relativePoint = relPoint, x = xOfs, y = yOfs }
+        local x, y = myDRs:GetCurrentPositionOffset()
+        myDRs:SaveAndApplyPosition(x, y)
     end)
 
     containerFrame.iconsContainer = iconsContainer
@@ -182,23 +258,23 @@ local function createIconFrames(parentFrame, MyDRs)
 
     for i = 1, #drCategories do
         local category = drCategories[i]
-        local drFrame = CreateFrame("Button", "MyDRsIconTracker"..i, parentFrame)
-        drFrame:SetSize(BASE_ICON_SIZE, BASE_ICON_SIZE)
-        drFrame:SetPoint("LEFT", (BASE_ICON_SIZE + padding) * (i - 1), 0)
-        drFrame:EnableMouse(false)
+        local iconFrame = CreateFrame("Button", "MyDRsIconTracker"..i, parentFrame)
+        iconFrame:SetSize(BASE_ICON_SIZE, BASE_ICON_SIZE)
+        iconFrame:SetPoint("LEFT", (BASE_ICON_SIZE + padding) * (i - 1), 0)
+        iconFrame:EnableMouse(false)
 
-        local icon = drFrame:CreateTexture(nil, "BACKGROUND")
+        local icon = iconFrame:CreateTexture(nil, "BACKGROUND")
         icon:SetAllPoints()
         icon:SetTexture(db["drTexture_" .. category] or drIconTextures[category])
 
-        local cooldown = CreateFrame("Cooldown", nil, drFrame, "CooldownFrameTemplate")
+        local cooldown = CreateFrame("Cooldown", nil, iconFrame, "CooldownFrameTemplate")
         cooldown:SetAllPoints()
         cooldown:SetReverse(db.enableCooldownReverse)
         cooldown:SetSwipeColor(0, 0, 0, db.cooldownSwipeAlpha)
 
-        local immuneAlert = createImmuneAlertFrame(drFrame)
-        local immuneBorder = createImmuneBorder(drFrame)
-        local preImmuneBorder = createPreImmuneBorder(drFrame)
+        local immuneAlert = createImmuneAlertFrame(iconFrame)
+        local immuneBorder = createImmuneBorder(iconFrame)
+        local preImmuneBorder = createPreImmuneBorder(iconFrame)
         
         local callbackCategory = category
         pcall(function()
@@ -221,23 +297,30 @@ local function createIconFrames(parentFrame, MyDRs)
         drStateText:SetPoint("BOTTOM", cooldown, "BOTTOM", 0, 2)
         drStateText:SetFont(drStateText:GetFont(), db.fontSize / scale, "OUTLINE")
 
-        drFrame.icon = icon
-        drFrame.cooldown = cooldown
-        drFrame.immuneAlert = immuneAlert
-        drFrame.immuneBorder = immuneBorder
-        drFrame.preImmuneBorder = preImmuneBorder
-        drFrame.drStateText = drStateText
-        drFrame.category = category
-        drFrame.sortIndex = i
-        drFrame:Hide()
-        parentFrame.drFramesByCategory[category] = drFrame
+        iconFrame.icon = icon
+        iconFrame.cooldown = cooldown
+        iconFrame.immuneAlert = immuneAlert
+        iconFrame.immuneBorder = immuneBorder
+        iconFrame.preImmuneBorder = preImmuneBorder
+        iconFrame.drStateText = drStateText
+        iconFrame.category = category
+        iconFrame.sortIndex = i
+        iconFrame:Hide()
+        parentFrame.drFramesByCategory[category] = iconFrame
 
-        MyDRs:RegisterMasqueButton(drFrame)
+        MyDRs:RegisterMasqueButton(iconFrame)
     end
 end
 
 function MyDRs:OnInitialize()
+    MarkPendingCenterMigrations(MyDRsDB)
     self.db = LibStub("AceDB-3.0"):New("MyDRsDB", DEFAULT_CONFIG, true)
+
+    if not self.db.global.hasShownAnchorAddedNotice then
+        self:Print("|cff00d1ffAnchor support added|r in the latest release. You can now use it to anchor the DR frame to frames such as PartyFrame, preserving the layout when switching UI layouts or toggling windowed mode.")
+        self.db.global.hasShownAnchorAddedNotice = true
+    end
+
     self.drStateByCategory = {}
     self:InitializeMasque()
     self.drFrame = createDrFrame(self)
@@ -246,6 +329,7 @@ function MyDRs:OnInitialize()
     self.downArrow = self:createArrowButton("DOWN", 0, -45)
     self.leftArrow = self:createArrowButton("LEFT", -15, -30)
     self.rightArrow = self:createArrowButton("RIGHT", 15, -30)
+    self:MigrateLegacyPositionIfNeeded()
 
     self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
@@ -260,9 +344,12 @@ function MyDRs:OnInitialize()
 end
 
 function MyDRs:OnProfileChanged()
+    self:MigrateLegacyPositionIfNeeded()
     self:UpdateConfig()
     self:applyTestMode()
     self:ApplyZoneState()
+    self:SaveAndApplyPosition()
+
 end
 
 function MyDRs:ZONE_CHANGED_NEW_AREA()
