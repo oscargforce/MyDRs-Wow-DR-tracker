@@ -50,9 +50,10 @@ end
 
 -- Helper function to deal with TOPLEFT anchoring and offsets for UIParent
 local function getDefaultPositionCoords()
+    local isCustom = MyDRs.db.profile.anchorFrame == "Custom" and MyDRs.db.profile.customAnchorFrame == ""
     local isUIParent = MyDRs.db.profile.anchorFrame == "UIParent"
-    local x = isUIParent and 800 or 0
-    local y = isUIParent and -500 or 0  
+    local x = (isUIParent or isCustom) and 800 or 0
+    local y = (isUIParent or isCustom) and -500 or 0  
     return x, y
 end
 
@@ -154,12 +155,27 @@ function MyDRs:SetupOptions()
                                "|cFFFFFF00Note about UI Parent:|r " ..
                                "Selecting |cFF00C0FFUI Parent|r anchors the DR bar to the main game UI instead of a unit frame." ..
                                "This keeps it fixed on your screen and prevents it from moving with frames.",
-                        values = { ["PlayerFrame"] = "Player Frame", ["TargetFrame"] = "Target Frame", ["FocusFrame"] = "Focus Frame", ["UIParent"] = "UI Parent", ["PartyFrame"] = "Party Frame", ["CompactRaidFrameContainer"] = "Raid Frame" },
+                        values = { ["PlayerFrame"] = "Player Frame", ["TargetFrame"] = "Target Frame", ["FocusFrame"] = "Focus Frame", ["UIParent"] = "UI Parent", ["PartyFrame"] = "Party Frame", ["CompactRaidFrameContainer"] = "Raid Frame", ["Custom"] = "Custom" },
                         get = function() return self.db.profile.anchorFrame end,
                         set = function(_, value)
                             self.db.profile.anchorFrame = value
                             self:SaveAndApplyPosition(getDefaultPositionCoords())
                         end,
+                    },
+                    customAnchorFrame = {
+                        order = 2.4,
+                        type = "input",
+                        name = "Custom Frame Name",
+                        desc = "Enter a global frame name to anchor to for example: |cff66ccffPersonalResourceDisplayFrame|r,\n|cff66ccffCompactArenaFrame|r,\n|cff66ccffPlayerFrame|r",
+                        get = function() return self.db.profile.customAnchorFrame or "" end,
+                        set = function(_, value)
+                            self.db.profile.customAnchorFrame = value and value:trim() or ""
+                            if self.db.profile.anchorFrame == "Custom" then
+                                self:SaveAndApplyPosition(getDefaultPositionCoords())
+                            end
+                        end,
+                        hidden = function() return self.db.profile.anchorFrame ~= "Custom" end,
+                        width = "full",
                     },
                     lineBreak1 = {
                         name = " ",

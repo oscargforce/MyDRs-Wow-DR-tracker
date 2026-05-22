@@ -33,6 +33,7 @@ local DEFAULT_CONFIG = {
     },
     profile = {
         anchorFrame = "UIParent",
+        customAnchorFrame = "",
         enableTestMode = false, 
         containerPosition = { point = "TOPLEFT", relativePoint = "TOPLEFT", x = 800, y = -500 },
         hasMigratedPosition = false,
@@ -139,7 +140,11 @@ local nonDrLossOfControlSpellIds = {
     [45334] = true,  -- Bear Charge
 }
 
-local function ResolveAnchorFrame(anchorFrameName)
+local function ResolveAnchorFrame(anchorFrameName, customAnchorFrameName)
+    if anchorFrameName == "Custom" then
+        anchorFrameName = customAnchorFrameName
+    end
+
     return _G[anchorFrameName] or UIParent
 end
 
@@ -159,7 +164,7 @@ end
 function MyDRs:SaveAndApplyPosition(x, y)
     local posX = x or self.db.profile.containerPosition.x
     local posY = y or self.db.profile.containerPosition.y
-    local anchorFrame = ResolveAnchorFrame(self.db.profile.anchorFrame)
+    local anchorFrame = ResolveAnchorFrame(self.db.profile.anchorFrame, self.db.profile.customAnchorFrame)
     self.drFrame:ClearAllPoints()  -- remove UIParent anchor set by StartMoving()
     self.drFrame:SetPoint("TOPLEFT", anchorFrame, "TOPLEFT", posX, posY)
     self.db.profile.containerPosition = { point = "TOPLEFT", relativePoint = "TOPLEFT", x = posX, y = posY }
@@ -167,7 +172,7 @@ function MyDRs:SaveAndApplyPosition(x, y)
 end
 
 function MyDRs:GetCurrentPositionOffset()
-    local anchorFrame = ResolveAnchorFrame(self.db.profile.anchorFrame)
+    local anchorFrame = ResolveAnchorFrame(self.db.profile.anchorFrame, self.db.profile.customAnchorFrame)
     return GetOffsetRelativeTo(self.drFrame, anchorFrame)
 end
 
@@ -178,7 +183,7 @@ function MyDRs:MigrateLegacyPositionIfNeeded()
     end
 
     local position = profile.containerPosition
-    local anchorFrame = ResolveAnchorFrame(profile.anchorFrame)
+    local anchorFrame = ResolveAnchorFrame(profile.anchorFrame, profile.customAnchorFrame)
     local hasNonTopLeftAnchor = position.point and position.relativePoint
         and (position.point ~= "TOPLEFT" or position.relativePoint ~= "TOPLEFT")
 
@@ -204,7 +209,7 @@ end
 local function createDrFrame(myDRs)
     local db = myDRs.db.profile
     local position = db.containerPosition
-    local anchorFrame = ResolveAnchorFrame(db.anchorFrame)
+    local anchorFrame = ResolveAnchorFrame(db.anchorFrame, db.customAnchorFrame)
     local containerFrame = CreateFrame("Frame", "MyDRsContainer", anchorFrame, "BackdropTemplate")
     containerFrame:SetClampedToScreen(false)
     containerFrame:SetFrameStrata("MEDIUM")
