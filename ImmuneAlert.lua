@@ -1,8 +1,7 @@
 -- All credits for the animations go to the authors of OmniCD
 
 local addonName, addon = ...
-local AnimateTexCoords = AnimateTexCoords
-
+local AnimateTexCoords = TextureUtil.AnimateTexCoords
 local IMMUNE_GLOW_COLOR_R = 0.68
 local IMMUNE_GLOW_COLOR_G = 0.28
 local IMMUNE_GLOW_COLOR_B = 0.98

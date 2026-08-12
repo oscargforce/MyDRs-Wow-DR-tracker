@@ -765,7 +765,7 @@ function MyDRs:playTestAnimation()
         return
     end
 
-    local interval = 16
+    local interval = 20
 
     if ticker then
         ticker:Cancel()

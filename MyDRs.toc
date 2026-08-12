@@ -1,9 +1,10 @@
-## Interface: 120005, 120007
+## Interface: 120100
 ## Title: MyDRs
 ## Notes: Tracks Diminishing Returns on players in battlegrounds and arenas
-## Version: 1.1.2
+## Version: 1.1.3
 ## SavedVariables: MyDRsDB
 ## OptionalDeps: Masque
+## Author: Oscarqt
 
 libs\LibStub\LibStub.lua
 libs\CallbackHandler-1.0\CallbackHandler-1.0.xml

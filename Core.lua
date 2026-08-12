@@ -28,9 +28,6 @@ local BASE_ICON_SIZE = 50
 addon.BASE_ICON_SIZE = BASE_ICON_SIZE
 
 local DEFAULT_CONFIG = {
-    global = {
-        hasShownAnchorAddedNotice = false,
-    },
     profile = {
         anchorFrame = "UIParent",
         customAnchorFrame = "",
@@ -70,7 +67,7 @@ local DEFAULT_CONFIG = {
     },
 }
 
-local DR_WINDOW_DURATION = 16
+local DR_WINDOW_DURATION = 20
 addon.DR_WINDOW_DURATION = DR_WINDOW_DURATION
 
 local function MarkPendingCenterMigrations(db)
@@ -320,12 +317,6 @@ end
 function MyDRs:OnInitialize()
     MarkPendingCenterMigrations(MyDRsDB)
     self.db = LibStub("AceDB-3.0"):New("MyDRsDB", DEFAULT_CONFIG, true)
-
-    if not self.db.global.hasShownAnchorAddedNotice then
-        self:Print("|cff00d1ffAnchor support added|r in the latest release. You can now use it to anchor the DR frame to frames such as PartyFrame, preserving the layout when switching UI layouts or toggling windowed mode.")
-        self.db.global.hasShownAnchorAddedNotice = true
-    end
-
     self.drStateByCategory = {}
     self:InitializeMasque()
     self.drFrame = createDrFrame(self)
